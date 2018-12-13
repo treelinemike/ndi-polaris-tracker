@@ -1,12 +1,19 @@
 function polarisCollect
 
-% reset instrument handles just to be safe
+% options
+SERIAL_TERMINATOR = hex2dec('0D');   % 0x0D = 0d13 = CR
+SERIAL_TIMEOUT    = 0.05;            % [s]
+SERIAL_COM_PORT   = 'COM4';
+
+global frameNums;
+frameNums = [];
+
+% reset MATLAB instrument handles just to be safe
 instrreset();
 
 % open COM port using default settings (9600 baud)
-COM_PORT = 'COM4';
-BAUDRATE = 9600;
-fid1 = serial(COM_PORT,'BaudRate',BAUDRATE,'Timeout',0.05,'Terminator',13);
+
+fid1 = serial(SERIAL_COM_PORT,'BaudRate',9600,'Timeout',SERIAL_TIMEOUT,'Terminator',SERIAL_TERMINATOR);
 warning off MATLAB:serial:fread:unsuccessfulRead;
 fopen(fid1);
 
@@ -29,8 +36,7 @@ disp(['< ' polarisGetResponse(fid1)]);
 fclose(fid1);
 disp('SWITCHING PC TO 57,000 BAUD');
 pause(0.5);
-BAUDRATE = 57600;
-fid1 = serial(COM_PORT,'BaudRate',BAUDRATE,'Timeout',0.05,'Terminator',13);
+fid1 = serial(SERIAL_COM_PORT,'BaudRate',57600,'Timeout',SERIAL_TIMEOUT,'Terminator',SERIAL_TERMINATOR);
 warning off MATLAB:serial:fread:unsuccessfulRead;
 fopen(fid1);
 
@@ -63,19 +69,19 @@ for fileIdx = 1:size(toolDefFiles,1)
         fclose(fid1);
         error('Invalid tool file and/or path.');
     end
-    disp(['INITIALIZING PORT ' char(64+fileIdx+1) ' WITH TOOL FILE: ' thisToolFile(max(strfind(thisToolFile,'\'))+1:end)]);
+    disp(['INITIALIZING PORT ' char(64+fileIdx) ' WITH TOOL FILE: ' thisToolFile(max(strfind(thisToolFile,'\'))+1:end)]);
     
     [readBytes, numBytes] = fread(toolFileID,64);
     bytePos = 0;
     while (numBytes == 64)
-        str = ['PVWR:' char(64+fileIdx+1) dec2hex(bytePos,4) reshape(dec2hex(readBytes,2)',1,[])];
+        str = ['PVWR:' char(64+fileIdx) dec2hex(bytePos,4) reshape(dec2hex(readBytes,2)',1,[])];
         polarisSendCommand(fid1,str);
         disp(['< ' polarisGetResponse(fid1)]);
         [readBytes, numBytes] = fread(toolFileID,64);
         bytePos = bytePos + 64;
     end
     if(numBytes > 0)
-        str = ['PVWR:' char(64+fileIdx+1) dec2hex(bytePos,4) reshape(dec2hex(readBytes,2)',1,[]) repmat('FF',1,64-numBytes)];
+        str = ['PVWR:' char(64+fileIdx) dec2hex(bytePos,4) reshape(dec2hex(readBytes,2)',1,[]) repmat('FF',1,64-numBytes)];
         polarisSendCommand(fid1,str);
         disp(['< ' polarisGetResponse(fid1)]);
     end
@@ -84,12 +90,12 @@ for fileIdx = 1:size(toolDefFiles,1)
     fclose(toolFileID);
     
     % initialize port handle for the tool
-    polarisSendCommand(fid1, ['PINIT:' char(64+fileIdx+1)]);
+    polarisSendCommand(fid1, ['PINIT:' char(64+fileIdx)]);
     disp(['< ' polarisGetResponse(fid1)]);
     
     % enable tracking for the tool ... ASSUMING DYNAMIC TOOL 'D' (may want to
     % change this to allow for static tools or button boxes)
-    polarisSendCommand(fid1, ['PENA:' char(64+fileIdx+1) 'D']);
+    polarisSendCommand(fid1, ['PENA:' char(64+fileIdx) 'D']);
     disp(['< ' polarisGetResponse(fid1)]);
 end
 
@@ -102,12 +108,20 @@ polarisSendCommand(fid1, 'TSTART:');
 disp(['< ' polarisGetResponse(fid1)]);
 
 % query position of tools
-for i = 1:3
+for i = 1:50
     
     polarisSendCommand(fid1, 'GX:800B');
-    disp(['< ' polarisGetResponse(fid1)]);
+    
+    thisResp = polarisGetResponse(fid1);
+    disp(['< ' thisResp]);
+    
+    frameNums(end+1) = hex2dec(thisResp(end-15:end-8));
+
+    pause(1);
     
 end
+
+
 
 % end tracking
 polarisSendCommand(fid1, 'TSTOP:');
@@ -129,7 +143,7 @@ end
 function polarisSendCommand(comPortHandle, cmdStr)
 
 realStr = [cmdStr polarisCRC16(0,cmdStr)];
-fprintf(comPortHandle,realStr);
+fprintf(comPortHandle,realStr); % note: terminator added automatically (default fprintf format is %s\n
 disp(['> ' strtrim(cmdStr)]);
 
 end
