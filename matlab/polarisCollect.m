@@ -14,7 +14,7 @@ function polarisCollect
 % CTRL-C
 cleanupHandle = onCleanup(@endTracking);
 
-% output file descriptor, will be given extensions .csv and .log
+% output file descriptor, will be given extensions .csv and .log (TODO)
 trialID = 'trial';
 outputFilePath = 'C:\Users\f002r5k\GitHub\ndi-polaris-tracker\matlab';
 
@@ -30,7 +30,8 @@ toolDefFiles = {
     '', '';
     '', '';
     '', '' };
-% make sure
+% make sure tool definition file cell array is the correct size (must be
+% 9x2)
 if (min(size(toolDefFiles) == [9,2]) == 0)
     error('Incorrect tool file definition cell array size.')
 end
@@ -54,7 +55,7 @@ SERIAL_TIMEOUT    = 0.05;            % [s]
 SERIAL_COM_PORT   = 'COM4';
 BASE_TOOL_CHAR = 64;
 
-% gx transform mapping
+% gx transform mapping (tool # -> line index in GX response)
 gx_transform_map = [6 7 8 10 11 12 14 15 16];
 
 % reset MATLAB instrument handles just to be safe
@@ -175,6 +176,7 @@ while 1
     % actual DATE)
     unixtimestamp = posixtime(datetime('now')); % recover with datetime(unixtimestamp,'ConvertFrom','posixtime')
     
+    % Sample GX() response
     % thisResp =[
     %     'DISABLED' char(10) ...
     %     'DISABLED' char(10) ...
