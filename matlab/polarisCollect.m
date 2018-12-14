@@ -1,6 +1,19 @@
+% polarisCollect.m
+%
+% Collect data from original (old!) NDI Polaris system for PASSIVE TOOLS
+% only. Up to 9 passive tools supported. Tool definition files (*.rom) must
+% be supplied and may be created using NDI 6D Architect software (available
+% from the NDI website, once logged in).
+%
+% Author: mkokko
+% Revised: 14-DEC-2018
+%
 function polarisCollect
 
+% handle to function that will execute when tracking is interrupted with
+% CTRL-C
 cleanupHandle = onCleanup(@endTracking);
+
 % output file descriptor, will be given extensions .csv and .log
 trialID = 'trial';
 outputFilePath = 'C:\Users\f002r5k\GitHub\ndi-polaris-tracker\matlab';
