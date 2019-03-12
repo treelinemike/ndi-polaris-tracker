@@ -6,8 +6,9 @@
 % from the NDI website, once logged in).
 %
 % Author: mkokko
-% Revised: 14-DEC-2018
+% Revised: 12-MAR-2019
 %
+
 function polarisCollect
 
 % handle to function that will execute when tracking is interrupted with
@@ -50,9 +51,9 @@ else
 end
 
 % options
+SERIAL_COM_PORT   = '';  % set this to '' for automatic detection
 SERIAL_TERMINATOR = hex2dec('0D');   % 0x0D = 0d13 = CR
 SERIAL_TIMEOUT    = 0.05;            % [s]
-SERIAL_COM_PORT   = 'COM4';
 BASE_TOOL_CHAR = 64;
 
 % gx transform mapping (tool # -> line index in GX response)
@@ -60,6 +61,30 @@ gx_transform_map = [6 7 8 10 11 12 14 15 16];
 
 % reset MATLAB instrument handles just to be safe
 instrreset();
+
+% attempt to automatically find the serial port if not manually specified
+% note: this relies on the serial port descriptor reported by
+% the Windows 'chgport' utility
+if(strcmp(SERIAL_COM_PORT,''))
+    disp('Attempting to identify correct COM port...');
+    [~,res]=system('chgport');
+    [mat,tok] = regexp(res, '([A-Z0-9]+)[\s=]+([\\A-Za-z]+)[0-9]+','match','tokens');
+    comMatches = {};
+    for i = 1:length(tok)
+        if( strcmp(tok{i}{2},'\Device\ProlificSerial') )
+            comMatches{end+1} = tok{i}{1};
+        end
+    end
+    switch length(comMatches)
+        case 0
+            error('COM port not found, set manually!');
+        case 1
+            disp(['Detected correct adapter on ' comMatches{1}]);
+            SERIAL_COM_PORT = comMatches{1};
+        otherwise
+            error('Multiple ''ProlificSerial'' devices found, set COM port manually!');
+    end
+end
 
 % open COM port using default settings (9600 baud)
 fid1 = serial(SERIAL_COM_PORT,'BaudRate',9600,'Timeout',SERIAL_TIMEOUT,'Terminator',SERIAL_TERMINATOR);
