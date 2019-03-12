@@ -5,7 +5,7 @@
 % be supplied and may be created using NDI 6D Architect software (available
 % from the NDI website, once logged in).
 %
-% Author: mkokko
+% Author: mkokko 
 % Revised: 12-MAR-2019
 %
 
