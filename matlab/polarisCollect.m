@@ -15,6 +15,15 @@ function polarisCollect
 % CTRL-C
 cleanupHandle = onCleanup(@endTracking);
 
+% options
+SERIAL_COM_PORT   = '';  % set this to '' for automatic detection
+SERIAL_TERMINATOR = hex2dec('0D');   % 0x0D = 0d13 = CR
+SERIAL_TIMEOUT    = 0.05;            % [s]
+BASE_TOOL_CHAR = 64;
+COLLECT_MODE = 0;   %0= normal; 1 = new tool data collection
+% gx transform mapping (tool # -> line index in GX response)
+gx_transform_map = [6 7 8 10 11 12 14 15 16];
+
 % output file descriptor, will be given extensions .csv and .log (TODO)
 trialID = 'trial';
 outputFilePath = 'C:\Users\f002r5k\GitHub\ndi-polaris-tracker\matlab';
@@ -22,8 +31,9 @@ outputFilePath = 'C:\Users\f002r5k\GitHub\ndi-polaris-tracker\matlab';
 % tool definition files: each row is filename, toolCode
 % tool code: 'D' = dynamic tool; 'S' = static tool; 'B' = button box
 toolDefFiles = {
+    'C:\Users\f002r5k\GitHub\ndi-polaris-tracker\tool-defs\medtronic_fromdata_1.rom', 'D';
     '','';%'C:\Users\f002r5k\Dropbox\projects\surg_nav\NDI\Polaris\Tool Definition Files\Medtronic_960_556_V3.rom', 'D';
-    'C:\Users\f002r5k\Dropbox\projects\surg_nav\NDI\Polaris\Tool Definition Files\PassiveProbe3PTS.rom', 'D'
+    %'C:\Users\f002r5k\Dropbox\projects\surg_nav\NDI\Polaris\ToolDefinition Files\PassiveProbe3PTS.rom', 'D';
     '', '';
     '', '';
     '', '';
@@ -42,23 +52,18 @@ toolsUsedMask = ~cellfun(@isempty,toolDefFiles(:,1));
 toolsUsed = find(toolsUsedMask);
 if( max(toolsUsed) < 4 )
     extended_flag = 0;
-%     gx_cmd_str = 'GX:800B';
-    gx_cmd_str = 'GX:9000';
+    switch(COLLECT_MODE)
+        case 0
+            gx_cmd_str = 'GX:800B';
+        case 1
+            gx_cmd_str = 'GX:9000';
+    end
     pstat_cmd_str = 'PSTAT:801f';
 else
     extended_flag = 1;
     gx_cmd_str = 'GX:A00B';
     pstat_cmd_str = 'PSTAT:A01f';
 end
-
-% options
-SERIAL_COM_PORT   = '';  % set this to '' for automatic detection
-SERIAL_TERMINATOR = hex2dec('0D');   % 0x0D = 0d13 = CR
-SERIAL_TIMEOUT    = 0.05;            % [s]
-BASE_TOOL_CHAR = 64;
-
-% gx transform mapping (tool # -> line index in GX response)
-gx_transform_map = [6 7 8 10 11 12 14 15 16];
 
 % reset MATLAB instrument handles just to be safe
 instrreset();
@@ -196,70 +201,74 @@ while 1
     % query tool positions
     polarisSendCommand(fid1, gx_cmd_str);
     thisResp = polarisGetResponse(fid1);
-    disp(['< ' thisResp]);
-    [match,tok] = regexp(thisResp,'([+-]+[0-9]+)','match','tokens');
     
-    if(length(tok) > 1)
-        tokMat = cellfun(@str2num,[tok{2:end}])/100;
-        outFormatStr = repmat('%+0.4f,',1,length(tokMat));
-        outFormatStr = [outFormatStr(1:end-1) '\n'];
+    if(COLLECT_MODE == 1)
+        disp(['< ' thisResp]);
+        [match,tok] = regexp(thisResp,'([+-]+[0-9]+)','match','tokens');
         
-        fprintf(fidDataOut,outFormatStr,tokMat);
+        if(length(tok) > 1)
+            tokMat = cellfun(@str2num,[tok{2:end}])/100;
+            outFormatStr = repmat('%+0.4f,',1,length(tokMat));
+            outFormatStr = [outFormatStr(1:end-1) '\n'];
+            fprintf(fidDataOut,outFormatStr,tokMat);
+        end
+    elseif(COLLECT_MODE == 0)
+        
+        % get a unix timestamp for sanity check and future use (may want the
+        % actual DATE)
+        unixtimestamp = posixtime(datetime('now')); % recover with datetime(unixtimestamp,'ConvertFrom','posixtime')
+        
+        % Sample GX() response
+        % thisResp =[
+        %     'DISABLED' char(10) ...
+        %     'DISABLED' char(10) ...
+        %     'DISABLED' char(10) ...
+        %     '00000000000000000000000000000000000000000000' char(10) ...
+        %     '000000000000000000000000' char(10) ...
+        %     '+00367+00613-00731-09947+043218+001124-175562+02835' char(10) ...
+        %     '+05270-05290+03621-05578+011421-004663-179021+00631' char(10) ...
+        %     'DISABLED' char(10) ...
+        %     '003131000000000000000000000003FF00000000003F' char(10) ...
+        %     '000000000000013900000139'];
+        disp(['< ' thisResp]);
+        
+        % extract quaternion, position, timestamp, and estimated error for each tool
+        respParts = strsplit(thisResp,char(10));
+        thisStatusStr = respParts{end};
+        for toolIdx = 1:length(toolsUsed)
+            toolNum = toolsUsed(toolIdx);
+            thisTransformStr = respParts{ gx_transform_map(toolNum) };
+            if(length(thisTransformStr) == 51)
+                q = zeros(4,1);
+                t = zeros(3,1);
+                
+                % extract rotational component (quaternion)
+                for qIdx = 1:4
+                    startIdx = (qIdx-1)*6 + 1;
+                    q(qIdx) = str2num(thisTransformStr(startIdx:startIdx+5))/10000;
+                end
+                
+                % extract translational component
+                for tIdx = 1:3
+                    startIdx = (tIdx-1)*7 + 25;
+                    t(tIdx) = str2num(thisTransformStr(startIdx:startIdx+6))/100;
+                end
+                
+                % extract error
+                err = str2num(thisTransformStr(46:end))/10000;
+                
+                % extract timestamp
+                startIdx = (toolNum-1)*8+1;
+                timestamp = hex2dec(thisStatusStr(startIdx:startIdx+7))/60;
+                
+                % display tool tracking information
+                fprintf('%0.4f,%0.2f,%s,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%+0.2f,%+0.2f,%+0.2f,%+0.4f\n', timestamp, unixtimestamp, char(BASE_TOOL_CHAR+toolNum), q(1), q(2), q(3), q(4), t(1), t(2), t(3), err);
+                fprintf(fidDataOut,'%0.4f,%0.2f,%s,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%+0.2f,%+0.2f,%+0.2f,%+0.4f\n', timestamp, unixtimestamp, char(BASE_TOOL_CHAR+toolNum), q(1), q(2), q(3), q(4), t(1), t(2), t(3), err);
+            else
+                disp(['Tool ' char(BASE_TOOL_CHAR+toolNum) ' unexpected transform result: ' thisTransformStr]);
+            end
+        end
     end
-% %     % get a unix timestamp for sanity check and future use (may want the
-% %     % actual DATE)
-% %     unixtimestamp = posixtime(datetime('now')); % recover with datetime(unixtimestamp,'ConvertFrom','posixtime')
-% %     
-    % Sample GX() response
-    % thisResp =[
-    %     'DISABLED' char(10) ...
-    %     'DISABLED' char(10) ...
-    %     'DISABLED' char(10) ...
-    %     '00000000000000000000000000000000000000000000' char(10) ...
-    %     '000000000000000000000000' char(10) ...
-    %     '+00367+00613-00731-09947+043218+001124-175562+02835' char(10) ...
-    %     '+05270-05290+03621-05578+011421-004663-179021+00631' char(10) ...
-    %     'DISABLED' char(10) ...
-    %     '003131000000000000000000000003FF00000000003F' char(10) ...
-    %     '000000000000013900000139'];
-    % disp(['< ' thisResp]);
-    
-% %     % extract quaternion, position, timestamp, and estimated error for each tool
-% %     respParts = strsplit(thisResp,char(10));
-% %     thisStatusStr = respParts{end};
-% %     for toolIdx = 1:length(toolsUsed)
-% %         toolNum = toolsUsed(toolIdx);
-% %         thisTransformStr = respParts{ gx_transform_map(toolNum) };
-% %         if(length(thisTransformStr) == 51)
-% %             q = zeros(4,1);
-% %             t = zeros(3,1);
-% %             
-% %             % extract rotational component (quaternion)
-% %             for qIdx = 1:4
-% %                 startIdx = (qIdx-1)*6 + 1;
-% %                 q(qIdx) = str2num(thisTransformStr(startIdx:startIdx+5))/10000;
-% %             end
-% %             
-% %             % extract translational component
-% %             for tIdx = 1:3
-% %                 startIdx = (tIdx-1)*7 + 25;
-% %                 t(tIdx) = str2num(thisTransformStr(startIdx:startIdx+6))/100;
-% %             end
-% %             
-% %             % extract error
-% %             err = str2num(thisTransformStr(46:end))/10000;
-% %             
-% %             % extract timestamp
-% %             startIdx = (toolNum-1)*8+1;
-% %             timestamp = hex2dec(thisStatusStr(startIdx:startIdx+7))/60;
-% %             
-% %             % display tool tracking information
-% %             fprintf('%0.4f,%0.2f,%s,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%+0.2f,%+0.2f,%+0.2f,%+0.4f\n', timestamp, unixtimestamp, char(BASE_TOOL_CHAR+toolNum), q(1), q(2), q(3), q(4), t(1), t(2), t(3), err);
-% %             fprintf(fidDataOut,'%0.4f,%0.2f,%s,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%+0.2f,%+0.2f,%+0.2f,%+0.4f\n', timestamp, unixtimestamp, char(BASE_TOOL_CHAR+toolNum), q(1), q(2), q(3), q(4), t(1), t(2), t(3), err);
-% %         else
-% %             disp(['Tool ' char(BASE_TOOL_CHAR+toolNum) ' unexpected transform result: ' thisTransformStr]);
-% %         end
-% %     end
 end
 
     function endTracking()
