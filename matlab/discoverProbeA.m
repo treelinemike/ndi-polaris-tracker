@@ -3,9 +3,11 @@ close all; clear all; clc;
 
 % options
 doShowAllPlots = 0;
+doCompareToGroundTruth = 0;
 
 % load data
-allData = load('medtronic_data_1_identify.csv');
+% allData = load('medtronic_data_1_identify.csv');
+allData = load('trial003.csv');
 allRelDist = [];
 allRelXYZ = [];
 
@@ -54,7 +56,7 @@ for rowIdx = 1:size(allData,1)
             plot3(allRelXYZ(:,i),allRelXYZ(:,i+1),allRelXYZ(:,i+2),'k.','MarkerSize',10);
             hold on;
         end
-
+        
         for locIdx = 1:size(sortedLocs,2) % in a loop for colors...
             plot3(localPts(1,locIdx),localPts(2,locIdx),localPts(3,locIdx),'.','MarkerSize',25);
         end
@@ -71,7 +73,7 @@ for rowIdx = 1:size(allData,1)
         zlim([-200,200]);
         
         drawnow;
-%         pause(0.1);
+        %         pause(0.1);
     end
 end
 
@@ -97,20 +99,25 @@ zlim([-200,200]);
 % but in the future an optimization routine might be more accurate
 estimate = reshape(mean(allRelXYZ),3,[])'
 
-% ground truth, relative to centroid
-groundTruth = [160,0,0;230,0,0;305,0,0;263.67,-43.49,0;256,42.71,0];  % from Xiaoyao
-groundTruth = groundTruth-repmat(mean(groundTruth),size(groundTruth,1),1);
 
-% align estimate with ground truth to see how close we came (measured by RMSE)
-[tform,movingReg,rmse] = pcregistericp(pointCloud(estimate),pointCloud(groundTruth));%,'InitialTransform',affine3d([-1 0 0 0; 0 -1 0 0; 0 0 1 0; 0 0 0 1]));
-rmse
-
-% plot results
-plot3(movingReg.Location(:,1),movingReg.Location(:,2),movingReg.Location(:,3),'r+','MarkerSize',5);
-plot3(groundTruth(:,1),groundTruth(:,2),groundTruth(:,3),'bo','MarkerSize',5);
-% [~,sidx] = sort(estimate(:,1));
-% est2 = estimate(sidx,:)
-% est2 = est2 - repmat([est2(1,1) 0 0],5,1)
-% [~,sidx] = sort(groundTruth(:,1));
-% gt2 = groundTruth(sidx,:);
-% gt2 = gt2 - repmat([gt2(1,1) 0 0],5,1)
+% compare to ground truth if requested
+if(doCompareToGroundTruth)
+    % ground truth, relative to centroid
+    groundTruth = [160,0,0;230,0,0;305,0,0;263.67,-43.49,0;256,42.71,0];  % from Xiaoyao
+    groundTruth = groundTruth-repmat(mean(groundTruth),size(groundTruth,1),1);
+    
+    % align estimate with ground truth to see how close we came (measured by RMSE)
+    [tform,movingReg,rmse] = pcregistericp(pointCloud(estimate),pointCloud(groundTruth));%,'InitialTransform',affine3d([-1 0 0 0; 0 -1 0 0; 0 0 1 0; 0 0 0 1]));
+    rmse
+    
+    % plot results
+    figure;
+    plot3(movingReg.Location(:,1),movingReg.Location(:,2),movingReg.Location(:,3),'r+','MarkerSize',5);
+    plot3(groundTruth(:,1),groundTruth(:,2),groundTruth(:,3),'bo','MarkerSize',5);
+    % [~,sidx] = sort(estimate(:,1));
+    % est2 = estimate(sidx,:)
+    % est2 = est2 - repmat([est2(1,1) 0 0],5,1)
+    % [~,sidx] = sort(groundTruth(:,1));
+    % gt2 = groundTruth(sidx,:);
+    % gt2 = gt2 - repmat([gt2(1,1) 0 0],5,1)
+end

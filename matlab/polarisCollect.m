@@ -21,6 +21,8 @@ SERIAL_TERMINATOR = hex2dec('0D');   % 0x0D = 0d13 = CR
 SERIAL_TIMEOUT    = 0.05;            % [s]
 BASE_TOOL_CHAR = 64;
 COLLECT_MODE = 0;   %0= normal; 1 = new tool data collection
+NUM_MARKERS = 3;    % number of markers in array, used only when learning an array
+
 % gx transform mapping (tool # -> line index in GX response)
 gx_transform_map = [6 7 8 10 11 12 14 15 16];
 
@@ -31,7 +33,8 @@ outputFilePath = 'C:\Users\f002r5k\GitHub\ndi-polaris-tracker\matlab';
 % tool definition files: each row is filename, toolCode
 % tool code: 'D' = dynamic tool; 'S' = static tool; 'B' = button box
 toolDefFiles = {
-    'C:\Users\f002r5k\GitHub\ndi-polaris-tracker\tool-defs\medtronic_fromdata_1.rom', 'D';
+    'C:\Users\f002r5k\GitHub\ndi-polaris-tracker\tool-defs\brainlab_stylet_fromdata_1.rom','D';
+    %'C:\Users\f002r5k\GitHub\ndi-polaris-tracker\tool-defs\medtronic_fromdata_2.rom', 'D';
     '','';%'C:\Users\f002r5k\Dropbox\projects\surg_nav\NDI\Polaris\Tool Definition Files\Medtronic_960_556_V3.rom', 'D';
     %'C:\Users\f002r5k\Dropbox\projects\surg_nav\NDI\Polaris\ToolDefinition Files\PassiveProbe3PTS.rom', 'D';
     '', '';
@@ -206,7 +209,7 @@ while 1
         disp(['< ' thisResp]);
         [match,tok] = regexp(thisResp,'([+-]+[0-9]+)','match','tokens');
         
-        if(length(tok) > 1)
+        if(length(tok) == (3*NUM_MARKERS+1) )
             tokMat = cellfun(@str2num,[tok{2:end}])/100;
             outFormatStr = repmat('%+0.4f,',1,length(tokMat));
             outFormatStr = [outFormatStr(1:end-1) '\n'];
@@ -235,6 +238,7 @@ while 1
         % extract quaternion, position, timestamp, and estimated error for each tool
         respParts = strsplit(thisResp,char(10));
         thisStatusStr = respParts{end};
+
         for toolIdx = 1:length(toolsUsed)
             toolNum = toolsUsed(toolIdx);
             thisTransformStr = respParts{ gx_transform_map(toolNum) };
