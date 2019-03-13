@@ -5,7 +5,7 @@ close all; clear all; clc;
 doShowPlots = 0;
 
 % load data
-allData = load('medtronic_test_a.csv');
+allData = load('medtronic_data_1_identify.csv');
 allRelDist = [];
 allRelXYZ = [];
 
@@ -22,7 +22,7 @@ for rowIdx = 1:size(allData,1)
     
     % rearrange eigenvectors in order of decreasing eigenvalues
     % so x axis has the largest variation, and z axis has the least
-    [valSort valSortIdx] = sort(diag(val),'descend')
+    [valSort valSortIdx] = sort(diag(val),'descend');
     vecSort = vec(:,valSortIdx);
     
     localPts = (vecSort')*relLocs(:,relDistSortIdx);
@@ -94,4 +94,14 @@ view([130,34]);
 xlim([-200,200]);
 ylim([-200,200]);
 zlim([-200,200]);
-reshape(mean(allRelXYZ),3,[])'
+estimate = reshape(mean(allRelXYZ),3,[])'
+groundTruth = [160,0,0;230,0,0;305,0,0;263.67,-43.49,0;256,42.71,0]
+[tform,movingReg,rmse] = pcregistericp(pointCloud(estimate),pointCloud(groundTruth));
+plot3(movingReg.Location(:,1),movingReg.Location(:,2),movingReg.Location(:,3))
+
+[~,sidx] = sort(estimate(:,1));
+est2 = estimate(sidx,:) 
+est2 = est2 - repmat([est2(1,1) 0 0],5,1)
+[~,sidx] = sort(groundTruth(:,1));
+gt2 = groundTruth(sidx,:);
+gt2 = gt2 - repmat([gt2(1,1) 0 0],5,1)
