@@ -68,7 +68,8 @@ toolDefFiles = repmat({'',''},9,1);
 % toolDefFiles{2,2} = 'D';
 setappdata(handles.mainpanel,'toolDefFiles',toolDefFiles);
 setappdata(handles.mainpanel,'outputFilePath','');
-% setappdata(handles.connectbutton,'status',0);
+setappdata(handles.mainpanel,'fidDataOut',-1);
+setappdata(handles.mainpanel,'fidSerial',-1);
 
 % configure various UI components
 updateOutputFilePath(hObject, eventdata, handles);
@@ -79,6 +80,9 @@ set(handles.stopcap,'Enable','off');
 set(handles.singlecap,'Enable','off');
 set(handles.capturenote,'Enable','off');
 
+% tip calibration not implemented yet...
+set(handles.tipcalbutton,'Enable','off');
+set(handles.tipcalclearbutton,'Enable','off');
 
 % UIWAIT makes polarisCollectGUI wait for user response (see UIRESUME)
 % uiwait(handles.mainpanel);
@@ -180,42 +184,87 @@ disableToolDefChange(hObject, eventdata, handles);
 disableOutputFileChange(hObject, eventdata, handles);
 set(handles.connectbutton,'Enable','off');
 
-% setappdata(handles.connectbutton,'status',1);
+% flag for errors in connection
+connectError = 0;
 
-% DO STUFF HERE %
-
-set(handles.disconnectbutton,'Enable','on');
-set(handles.singlecap,'Enable','on');
-set(handles.startcap,'Enable','on');
-set(handles.capturenote,'Enable','on');
-
-
-% msgbox(handles.comport.String{handles.comport.Value});
-% set(handles.connectbutton,'String','Disconnect');
-for i = 1:10
+% load output file
+if(~connectError)
     
-    handles.statusbox.String = [handles.statusbox.String;{num2str(i)}];
-    %    handles.statusbox.Value = i;
-    handles.statusbox.Value = length(handles.statusbox.String);
+    % get desired output file (full path and filename)
+    outputFilePath = getappdata(handles.mainpanel,'outputFilePath');
     
-    %     if(isempty(handles.statusbox.String))
-    %         handles.statusbox.String = {num2str(i)};
-    %     else
-    %         disp(['Trying: ' ]);
-    %         [handles.statusbox.String; {num2str(i)}]
-    %         handles.statusbox.String = [handles.statusbox.String; {num2str(i)}];
-    %     end
-    %     set(handles.statusbox,'String',[handles.statusbox.String char(10) num2str(i)]);
-    drawnow;
-    pause(0.1);
+    % by default, look for trialxxx.csv files in the current directory and add the next one...
+    if(isempty(outputFilePath))
+        [mat,tok] = regexp(string(ls()),'trial([0-9]+).csv','match','tokens');
+        newFileIdx = max(arrayfun(@str2num,[tok{:}]))+1;
+        if(isempty(newFileIdx))
+            newFileIdx = 1;
+        end
+        outputFilePath = ['trial' sprintf('%03d',newFileIdx) '.csv'];
+        set(handles.outputfile,'String',outputFilePath);
+    else
+        % avoid overwriting file
+        % TODO: make this more robust
+        if(isfile(outputFilePath))
+           error('File already exists!');
+        end
+    end
+    
+    
+    
+    % open the output file
+    fidDataOut = fopen(outputFilePath,'w');
+    
+    % set error flag if file didn't load
+    % otherwise store fid for use (writing, closing) elsewhere
+    if( fidDataOut == -1 )
+       connectError = 1; 
+    else
+       setappdata(handles.mainpanel,'fidDataOut',fidDataOut);
+    end
 end
 
-% --- Executes on button press in disconnectbutton.
-function disconnectbutton_Callback(hObject, eventdata, handles)
-% hObject    handle to disconnectbutton (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
+% now try to actually connect to device
+if(~connectError)
+    % nop
+end
 
+% adjust UI to new mode (either error out or prepare to collect)
+if(~connectError)
+    set(handles.disconnectbutton,'Enable','on');
+    set(handles.singlecap,'Enable','on');
+    set(handles.startcap,'Enable','on');
+    set(handles.capturenote,'Enable','on');
+    
+    % TEST CODE... THIS NEEDS TO BE REMOVED
+    % msgbox(handles.comport.String{handles.comport.Value});
+    % set(handles.connectbutton,'String','Disconnect');
+    for i = 1:10
+        
+        handles.statusbox.String = [handles.statusbox.String;{num2str(i)}];
+        %    handles.statusbox.Value = i;
+        handles.statusbox.Value = length(handles.statusbox.String);
+        
+        %     if(isempty(handles.statusbox.String))
+        %         handles.statusbox.String = {num2str(i)};
+        %     else
+        %         disp(['Trying: ' ]);
+        %         [handles.statusbox.String; {num2str(i)}]
+        %         handles.statusbox.String = [handles.statusbox.String; {num2str(i)}];
+        %     end
+        %     set(handles.statusbox,'String',[handles.statusbox.String char(10) num2str(i)]);
+        drawnow;
+        pause(0.1);
+    end
+    
+    
+    
+    
+else
+    disconnectUIChange(hObject, eventdata, handles);
+end
+
+function disconnectUIChange(hObject, eventdata, handles)
 set(handles.comport,'Enable','on');
 enableToolDefChange(hObject, eventdata, handles);
 enableOutputFileChange(hObject, eventdata, handles);
@@ -226,6 +275,17 @@ set(handles.disconnectbutton,'Enable','off');
 set(handles.singlecap,'Enable','off');
 set(handles.startcap,'Enable','off');
 set(handles.capturenote,'Enable','off');
+
+% --- Executes on button press in disconnectbutton.
+function disconnectbutton_Callback(hObject, eventdata, handles)
+% hObject    handle to disconnectbutton (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+disconnectUIChange(hObject, eventdata, handles);
+fidDataOut = getappdata(handles.mainpanel,'fidDataOut');
+fwrite(fidDataOut,'test!');
+fclose(fidDataOut);
 
 
 % --- Executes on selection change in toolid.
@@ -407,7 +467,7 @@ function outputfileselectbutton_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 [file, path] = uiputfile('*.csv','Specify output file');
-if(ischar(file))  
+if(ischar(file))
     setappdata(handles.mainpanel,'outputFilePath',[path file]);
 end
 updateOutputFilePath(hObject, eventdata, handles);
@@ -429,7 +489,7 @@ function outputfile_Callback(hObject, eventdata, handles)
 % Hints: get(hObject,'String') returns contents of outputfile as text
 %        str2double(get(hObject,'String')) returns contents of outputfile as a double
 
- setappdata(handles.mainpanel,'outputFilePath',get(handles.outputfile,'String'));
+setappdata(handles.mainpanel,'outputFilePath',get(handles.outputfile,'String'));
 updateOutputFilePath(hObject, eventdata, handles);
 
 
