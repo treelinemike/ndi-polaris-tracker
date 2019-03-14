@@ -22,16 +22,16 @@ function varargout = polarisCollectGUI(varargin)
 
 % Edit the above text to modify the response to help polarisCollectGUI
 
-% Last Modified by GUIDE v2.5 13-Dec-2018 20:40:21
+% Last Modified by GUIDE v2.5 14-Mar-2019 10:02:40
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
 gui_State = struct('gui_Name',       mfilename, ...
-                   'gui_Singleton',  gui_Singleton, ...
-                   'gui_OpeningFcn', @polarisCollectGUI_OpeningFcn, ...
-                   'gui_OutputFcn',  @polarisCollectGUI_OutputFcn, ...
-                   'gui_LayoutFcn',  [] , ...
-                   'gui_Callback',   []);
+    'gui_Singleton',  gui_Singleton, ...
+    'gui_OpeningFcn', @polarisCollectGUI_OpeningFcn, ...
+    'gui_OutputFcn',  @polarisCollectGUI_OutputFcn, ...
+    'gui_LayoutFcn',  [] , ...
+    'gui_Callback',   []);
 if nargin && ischar(varargin{1})
     gui_State.gui_Callback = str2func(varargin{1});
 end
@@ -58,12 +58,70 @@ handles.output = hObject;
 % Update handles structure
 guidata(hObject, handles);
 
+handles.comport.String = [{'Auto'} cellstr(seriallist())];
+set(handles.tooldeffile,'Enable','off')
+set(handles.tipcalfile,'Enable','off')
+toolDefFiles = repmat({'',''},9,1);
+% toolDefFiles{1,1} = 'test 1: should be static';
+% toolDefFiles{1,2} = 'S';
+% toolDefFiles{2,1} = 'test 2: should be dynamic';
+% toolDefFiles{2,2} = 'D';
+setappdata(handles.mainpanel,'toolDefFiles',toolDefFiles);
+setappdata(handles.connectbutton,'status',0);
+
 % UIWAIT makes polarisCollectGUI wait for user response (see UIRESUME)
-% uiwait(handles.figure1);
+% uiwait(handles.mainpanel);
+
+% disable controls for changing tool definition table
+function disableToolDefChange(hObject, eventdata, handles)
+set(handles.rbstatic,'Enable','off');
+set(handles.rbdynamic,'Enable','off');
+set(handles.tooldefbutton,'Enable','off');
+set(handles.tooldefclearbutton,'Enable','off');
+set(handles.tipcalbutton,'Enable','off');
+set(handles.tipcalclearbutton,'Enable','off');
+
+% enable controls for changing tool definition table
+function enableToolDefChange(hObject, eventdata, handles)
+set(handles.rbstatic,'Enable','on');
+set(handles.rbdynamic,'Enable','on');
+set(handles.tooldefbutton,'Enable','on');
+set(handles.tooldefclearbutton,'Enable','on');
+set(handles.tipcalbutton,'Enable','on');
+set(handles.tipcalclearbutton,'Enable','on');
+
+
+function updateToolDefDisplay(hObject, eventdata, handles)
+toolDefFiles = getappdata(handles.mainpanel,'toolDefFiles');
+toolIdx = get(handles.toolid,'Value');
+
+% put tool definition file into correct box
+fullPathStr = toolDefFiles{toolIdx,1};
+lastSlashIdx = find(fullPathStr == '\',1,'last');
+if(~isempty(lastSlashIdx))
+    set(handles.tooldeffile,'String',fullPathStr(lastSlashIdx+1:end));
+else
+    set(handles.tooldeffile,'String',fullPathStr);
+end
+
+% set radio buttons appropriately
+thisToolType = toolDefFiles{toolIdx,2};
+switch(thisToolType)
+    case 'D'
+        set(handles.rbdynamic,'Value',1);
+        set(handles.rbstatic,'Value',0);
+    case 'S'
+        set(handles.rbstatic,'Value',1);
+        set(handles.rbdynamic,'Value',0);
+    otherwise  % set radio buttons to dynamic by default
+        set(handles.rbdynamic,'Value',1);
+        set(handles.rbstatic,'Value',0);
+        disp(['Unexpected tool type in structure: ' thisToolType]);
+end
 
 
 % --- Outputs from this function are returned to the command line.
-function varargout = polarisCollectGUI_OutputFcn(hObject, eventdata, handles) 
+function varargout = polarisCollectGUI_OutputFcn(hObject, eventdata, handles)
 % varargout  cell array for returning output args (see VARARGOUT);
 % hObject    handle to figure
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -73,28 +131,63 @@ function varargout = polarisCollectGUI_OutputFcn(hObject, eventdata, handles)
 varargout{1} = handles.output;
 
 
-% --- Executes on button press in pushbutton1.
-function pushbutton1_Callback(hObject, eventdata, handles)
-% hObject    handle to pushbutton1 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-msgbox('hi');
-
-
-% --- Executes on selection change in selectToolBox.
-function selectToolBox_Callback(hObject, eventdata, handles)
-% hObject    handle to selectToolBox (see GCBO)
+% --- Executes on button press in connectbutton.
+function connectbutton_Callback(hObject, eventdata, handles)
+% hObject    handle to connectbutton (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-% Hints: contents = cellstr(get(hObject,'String')) returns selectToolBox contents as cell array
-%        contents{get(hObject,'Value')} returns selected item from selectToolBox
+if(getappdata(handles.connectbutton,'status') == 0)
+    set(handles.comport,'Enable','off');
+    disableToolDefChange(hObject, eventdata, handles);
+    set(handles.connectbutton,'String','Disconnect');
+    setappdata(handles.connectbutton,'status',1);
+else
+    set(handles.comport,'Enable','on');
+    enableToolDefChange(hObject, eventdata, handles);
+    set(handles.connectbutton,'String','Connect');
+    setappdata(handles.connectbutton,'status',0);
+end
+
+
+% msgbox(handles.comport.String{handles.comport.Value});
+% set(handles.connectbutton,'String','Disconnect');
+for i = 1:10
+    
+    handles.statusbox.String = [handles.statusbox.String;{num2str(i)}];
+    %    handles.statusbox.Value = i;
+    handles.statusbox.Value = length(handles.statusbox.String);
+    
+    %     if(isempty(handles.statusbox.String))
+    %         handles.statusbox.String = {num2str(i)};
+    %     else
+    %         disp(['Trying: ' ]);
+    %         [handles.statusbox.String; {num2str(i)}]
+    %         handles.statusbox.String = [handles.statusbox.String; {num2str(i)}];
+    %     end
+    %     set(handles.statusbox,'String',[handles.statusbox.String char(10) num2str(i)]);
+    drawnow;
+    pause(0.1);
+end
+
+
+% --- Executes on selection change in toolid.
+function toolid_Callback(hObject, eventdata, handles)
+% hObject    handle to toolid (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: contents = cellstr(get(hObject,'String')) returns toolid contents as cell array
+%        contents{get(hObject,'Value')} returns selected item from toolid
+
+updateToolDefDisplay(hObject, eventdata, handles);
+
 contents = cellstr(get(hObject,'String'));
 disp(contents{get(hObject,'Value')});
 
 % --- Executes during object creation, after setting all properties.
-function selectToolBox_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to selectToolBox (see GCBO)
+function toolid_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to toolid (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    empty - handles not created until after all CreateFcns called
 
@@ -106,33 +199,68 @@ end
 set(hObject,'String',num2cell(char(64+(1:9))));
 
 
-% --- Executes on button press in pushbutton2.
-function pushbutton2_Callback(hObject, eventdata, handles)
-% hObject    handle to pushbutton2 (see GCBO)
+% --- Executes on button press in tooldefbutton.
+function tooldefbutton_Callback(hObject, eventdata, handles)
+% hObject    handle to tooldefbutton (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
+[file,path] = uigetfile('*.rom','Select Tool Definition File');
 
-% --- Executes on button press in pushbutton3.
-function pushbutton3_Callback(hObject, eventdata, handles)
-% hObject    handle to pushbutton3 (see GCBO)
+if(ischar(file))
+    toolDefFiles = getappdata(handles.mainpanel,'toolDefFiles');
+    toolIdx = get(handles.toolid,'Value');
+    
+    toolDefFiles{toolIdx,1} = [path file];
+    
+    staticVal = get(handles.rbstatic,'Value');
+    dynamicVal = get(handles.rbdynamic,'Value');
+    
+    if(staticVal && ~dynamicVal)
+        toolDefFiles{toolIdx,2} = 'S';
+    elseif(~staticVal && dynamicVal)
+        toolDefFiles{toolIdx,2} = 'D';
+    else
+        disp('Invalid combination of radio button values!');
+    end
+    
+    setappdata(handles.mainpanel,'toolDefFiles',toolDefFiles);
+    
+    updateToolDefDisplay(hObject, eventdata, handles);
+    
+end
+
+
+
+
+
+% --- Executes on button press in tooldefclearbutton.
+function tooldefclearbutton_Callback(hObject, eventdata, handles)
+% hObject    handle to tooldefclearbutton (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
+toolDefFiles = getappdata(handles.mainpanel,'toolDefFiles');
+toolIdx = get(handles.toolid,'Value');
+toolDefFiles{toolIdx,1} = '';
+toolDefFiles{toolIdx,2} = '';
+setappdata(handles.mainpanel,'toolDefFiles',toolDefFiles);
+updateToolDefDisplay(hObject, eventdata, handles);
 
 
-function edit1_Callback(hObject, eventdata, handles)
-% hObject    handle to edit1 (see GCBO)
+
+function tooldeffile_Callback(hObject, eventdata, handles)
+% hObject    handle to tooldeffile (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-% Hints: get(hObject,'String') returns contents of edit1 as text
-%        str2double(get(hObject,'String')) returns contents of edit1 as a double
+% Hints: get(hObject,'String') returns contents of tooldeffile as text
+%        str2double(get(hObject,'String')) returns contents of tooldeffile as a double
 
 
 % --- Executes during object creation, after setting all properties.
-function edit1_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to edit1 (see GCBO)
+function tooldeffile_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to tooldeffile (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    empty - handles not created until after all CreateFcns called
 
@@ -143,33 +271,33 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
 end
 
 
-% --- Executes on button press in pushbutton4.
-function pushbutton4_Callback(hObject, eventdata, handles)
-% hObject    handle to pushbutton4 (see GCBO)
+% --- Executes on button press in tipcalbutton.
+function tipcalbutton_Callback(hObject, eventdata, handles)
+% hObject    handle to tipcalbutton (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
 
-% --- Executes on button press in pushbutton5.
-function pushbutton5_Callback(hObject, eventdata, handles)
-% hObject    handle to pushbutton5 (see GCBO)
+% --- Executes on button press in tipcalclearbutton.
+function tipcalclearbutton_Callback(hObject, eventdata, handles)
+% hObject    handle to tipcalclearbutton (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
 
 
-function edit2_Callback(hObject, eventdata, handles)
-% hObject    handle to edit2 (see GCBO)
+function tipcalfile_Callback(hObject, eventdata, handles)
+% hObject    handle to tipcalfile (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-% Hints: get(hObject,'String') returns contents of edit2 as text
-%        str2double(get(hObject,'String')) returns contents of edit2 as a double
+% Hints: get(hObject,'String') returns contents of tipcalfile as text
+%        str2double(get(hObject,'String')) returns contents of tipcalfile as a double
 
 
 % --- Executes during object creation, after setting all properties.
-function edit2_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to edit2 (see GCBO)
+function tipcalfile_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to tipcalfile (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    empty - handles not created until after all CreateFcns called
 
@@ -229,3 +357,136 @@ function edit3_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
+
+
+
+function statusbox_Callback(hObject, eventdata, handles)
+% hObject    handle to statusbox (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of statusbox as text
+%        str2double(get(hObject,'String')) returns contents of statusbox as a double
+
+
+% --- Executes during object creation, after setting all properties.
+function statusbox_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to statusbox (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+
+function capturenote_Callback(hObject, eventdata, handles)
+% hObject    handle to capturenote (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of capturenote as text
+%        str2double(get(hObject,'String')) returns contents of capturenote as a double
+
+
+% --- Executes during object creation, after setting all properties.
+function capturenote_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to capturenote (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+% --- Executes on selection change in comport.
+function comport_Callback(hObject, eventdata, handles)
+% hObject    handle to comport (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: contents = cellstr(get(hObject,'String')) returns comport contents as cell array
+%        contents{get(hObject,'Value')} returns selected item from comport
+
+
+% --- Executes during object creation, after setting all properties.
+function comport_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to comport (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: popupmenu controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+% --- Executes on button press in pushbutton10.
+function pushbutton10_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton10 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+
+% --- Executes on button press in pushbutton11.
+function pushbutton11_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton11 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+
+
+function outputfile_Callback(hObject, eventdata, handles)
+% hObject    handle to outputfile (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of outputfile as text
+%        str2double(get(hObject,'String')) returns contents of outputfile as a double
+
+
+% --- Executes during object creation, after setting all properties.
+function outputfile_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to outputfile (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+% --- Executes when selected object is changed in tooltyperbs.
+function tooltyperbs_SelectionChangedFcn(hObject, eventdata, handles)
+% hObject    handle to the selected object in tooltyperbs
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+toolDefFiles = getappdata(handles.mainpanel,'toolDefFiles');
+toolIdx = get(handles.toolid,'Value');
+
+staticVal = get(handles.rbstatic,'Value');
+dynamicVal = get(handles.rbdynamic,'Value');
+
+if(staticVal && ~dynamicVal)
+    toolDefFiles{toolIdx,2} = 'S';
+elseif(~staticVal && dynamicVal)
+    toolDefFiles{toolIdx,2} = 'D';
+else
+    disp('Invalid combination of radio button values!');
+end
+
+setappdata(handles.mainpanel,'toolDefFiles',toolDefFiles);
+
+updateToolDefDisplay(hObject, eventdata, handles);
+
+
