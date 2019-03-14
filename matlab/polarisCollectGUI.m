@@ -22,7 +22,7 @@ function varargout = polarisCollectGUI(varargin)
 
 % Edit the above text to modify the response to help polarisCollectGUI
 
-% Last Modified by GUIDE v2.5 14-Mar-2019 10:02:40
+% Last Modified by GUIDE v2.5 14-Mar-2019 13:16:29
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -67,10 +67,33 @@ toolDefFiles = repmat({'',''},9,1);
 % toolDefFiles{2,1} = 'test 2: should be dynamic';
 % toolDefFiles{2,2} = 'D';
 setappdata(handles.mainpanel,'toolDefFiles',toolDefFiles);
-setappdata(handles.connectbutton,'status',0);
+setappdata(handles.mainpanel,'outputFilePath','');
+% setappdata(handles.connectbutton,'status',0);
+
+% configure various UI components
+updateOutputFilePath(hObject, eventdata, handles);
+updateToolDefDisplay(hObject, eventdata, handles);
+set(handles.disconnectbutton,'Enable','off');
+set(handles.startcap,'Enable','off');
+set(handles.stopcap,'Enable','off');
+set(handles.singlecap,'Enable','off');
+set(handles.capturenote,'Enable','off');
+
 
 % UIWAIT makes polarisCollectGUI wait for user response (see UIRESUME)
 % uiwait(handles.mainpanel);
+
+% disable controls for changing output file
+function disableOutputFileChange(hObject, eventdata, handles)
+set(handles.outputfile,'Enable','off');
+set(handles.outputfileselectbutton,'Enable','off');
+set(handles.outputfileclearbutton,'Enable','off');
+
+% enable controls for changing output file
+function enableOutputFileChange(hObject, eventdata, handles)
+set(handles.outputfile,'Enable','on');
+set(handles.outputfileselectbutton,'Enable','on');
+set(handles.outputfileclearbutton,'Enable','on');
 
 % disable controls for changing tool definition table
 function disableToolDefChange(hObject, eventdata, handles)
@@ -90,6 +113,18 @@ set(handles.tooldefclearbutton,'Enable','on');
 set(handles.tipcalbutton,'Enable','on');
 set(handles.tipcalclearbutton,'Enable','on');
 
+function updateOutputFilePath(hObject, eventdata, handles)
+outputFilePath = getappdata(handles.mainpanel,'outputFilePath');
+if(isempty(outputFilePath))
+    set(handles.outputfile,'String','No output file selected!');
+else
+    lastSlashIdx = find(outputFilePath == '\',1,'last');
+    if(~isempty(lastSlashIdx))
+        set(handles.outputfile,'String',outputFilePath(lastSlashIdx+1:end));
+    else
+        set(handles.outputfile,'String',outputFilePath);
+    end
+end
 
 function updateToolDefDisplay(hObject, eventdata, handles)
 toolDefFiles = getappdata(handles.mainpanel,'toolDefFiles');
@@ -97,11 +132,15 @@ toolIdx = get(handles.toolid,'Value');
 
 % put tool definition file into correct box
 fullPathStr = toolDefFiles{toolIdx,1};
-lastSlashIdx = find(fullPathStr == '\',1,'last');
-if(~isempty(lastSlashIdx))
-    set(handles.tooldeffile,'String',fullPathStr(lastSlashIdx+1:end));
+if(isempty(fullPathStr))
+    set(handles.tooldeffile,'String','No tool definition file selected!');
 else
-    set(handles.tooldeffile,'String',fullPathStr);
+    lastSlashIdx = find(fullPathStr == '\',1,'last');
+    if(~isempty(lastSlashIdx))
+        set(handles.tooldeffile,'String',fullPathStr(lastSlashIdx+1:end));
+    else
+        set(handles.tooldeffile,'String',fullPathStr);
+    end
 end
 
 % set radio buttons appropriately
@@ -116,7 +155,6 @@ switch(thisToolType)
     otherwise  % set radio buttons to dynamic by default
         set(handles.rbdynamic,'Value',1);
         set(handles.rbstatic,'Value',0);
-        disp(['Unexpected tool type in structure: ' thisToolType]);
 end
 
 
@@ -137,17 +175,19 @@ function connectbutton_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-if(getappdata(handles.connectbutton,'status') == 0)
-    set(handles.comport,'Enable','off');
-    disableToolDefChange(hObject, eventdata, handles);
-    set(handles.connectbutton,'String','Disconnect');
-    setappdata(handles.connectbutton,'status',1);
-else
-    set(handles.comport,'Enable','on');
-    enableToolDefChange(hObject, eventdata, handles);
-    set(handles.connectbutton,'String','Connect');
-    setappdata(handles.connectbutton,'status',0);
-end
+set(handles.comport,'Enable','off');
+disableToolDefChange(hObject, eventdata, handles);
+disableOutputFileChange(hObject, eventdata, handles);
+set(handles.connectbutton,'Enable','off');
+
+% setappdata(handles.connectbutton,'status',1);
+
+% DO STUFF HERE %
+
+set(handles.disconnectbutton,'Enable','on');
+set(handles.singlecap,'Enable','on');
+set(handles.startcap,'Enable','on');
+set(handles.capturenote,'Enable','on');
 
 
 % msgbox(handles.comport.String{handles.comport.Value});
@@ -170,6 +210,23 @@ for i = 1:10
     pause(0.1);
 end
 
+% --- Executes on button press in disconnectbutton.
+function disconnectbutton_Callback(hObject, eventdata, handles)
+% hObject    handle to disconnectbutton (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+set(handles.comport,'Enable','on');
+enableToolDefChange(hObject, eventdata, handles);
+enableOutputFileChange(hObject, eventdata, handles);
+set(handles.connectbutton,'String','Connect');
+set(handles.connectbutton,'Enable','on');
+set(handles.disconnectbutton,'Enable','off');
+set(handles.disconnectbutton,'Enable','off');
+set(handles.singlecap,'Enable','off');
+set(handles.startcap,'Enable','off');
+set(handles.capturenote,'Enable','off');
+
 
 % --- Executes on selection change in toolid.
 function toolid_Callback(hObject, eventdata, handles)
@@ -180,23 +237,13 @@ function toolid_Callback(hObject, eventdata, handles)
 % Hints: contents = cellstr(get(hObject,'String')) returns toolid contents as cell array
 %        contents{get(hObject,'Value')} returns selected item from toolid
 
+% contents = cellstr(get(hObject,'String'));
+% disp(contents{get(hObject,'Value')});
+
 updateToolDefDisplay(hObject, eventdata, handles);
 
-contents = cellstr(get(hObject,'String'));
-disp(contents{get(hObject,'Value')});
 
-% --- Executes during object creation, after setting all properties.
-function toolid_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to toolid (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
 
-% Hint: popupmenu controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
-if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
-end
-set(hObject,'String',num2cell(char(64+(1:9))));
 
 
 % --- Executes on button press in tooldefbutton.
@@ -258,17 +305,6 @@ function tooldeffile_Callback(hObject, eventdata, handles)
 %        str2double(get(hObject,'String')) returns contents of tooldeffile as a double
 
 
-% --- Executes during object creation, after setting all properties.
-function tooldeffile_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to tooldeffile (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: edit controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
-if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
-end
 
 
 % --- Executes on button press in tipcalbutton.
@@ -295,93 +331,50 @@ function tipcalfile_Callback(hObject, eventdata, handles)
 %        str2double(get(hObject,'String')) returns contents of tipcalfile as a double
 
 
-% --- Executes during object creation, after setting all properties.
-function tipcalfile_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to tipcalfile (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: edit controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
-if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
-end
 
 
-% --- Executes on button press in pushbutton6.
-function pushbutton6_Callback(hObject, eventdata, handles)
-% hObject    handle to pushbutton6 (see GCBO)
+
+% --- Executes on button press in singlecap.
+function singlecap_Callback(hObject, eventdata, handles)
+% hObject    handle to singlecap (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
+set(handles.capturenote,'Enable','off');
+set(handles.startcap,'Enable','off');
+set(handles.singlecap,'Enable','off');
+set(handles.disconnectbutton,'Enable','off');
 
+% DO STUFF
+pause(0.5);
+set(handles.capturenote,'Enable','on');
+set(handles.startcap,'Enable','on');
+set(handles.singlecap,'Enable','on');
+set(handles.disconnectbutton,'Enable','on');
 
-% --- Executes on button press in pushbutton7.
-function pushbutton7_Callback(hObject, eventdata, handles)
-% hObject    handle to pushbutton7 (see GCBO)
+% --- Executes on button press in startcap.
+function startcap_Callback(hObject, eventdata, handles)
+% hObject    handle to startcap (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
+set(handles.capturenote,'Enable','off');
+set(handles.startcap,'Enable','off');
+set(handles.singlecap,'Enable','off');
+set(handles.stopcap,'Enable','on');
+set(handles.disconnectbutton,'Enable','off');
 
 
-% --- Executes on button press in pushbutton8.
-function pushbutton8_Callback(hObject, eventdata, handles)
-% hObject    handle to pushbutton8 (see GCBO)
+
+
+% --- Executes on button press in stopcap.
+function stopcap_Callback(hObject, eventdata, handles)
+% hObject    handle to stopcap (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-
-
-% --- Executes on button press in pushbutton9.
-function pushbutton9_Callback(hObject, eventdata, handles)
-% hObject    handle to pushbutton9 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-
-
-function edit3_Callback(hObject, eventdata, handles)
-% hObject    handle to edit3 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'String') returns contents of edit3 as text
-%        str2double(get(hObject,'String')) returns contents of edit3 as a double
-
-
-% --- Executes during object creation, after setting all properties.
-function edit3_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to edit3 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: edit controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
-if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
-end
-
-
-
-function statusbox_Callback(hObject, eventdata, handles)
-% hObject    handle to statusbox (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'String') returns contents of statusbox as text
-%        str2double(get(hObject,'String')) returns contents of statusbox as a double
-
-
-% --- Executes during object creation, after setting all properties.
-function statusbox_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to statusbox (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: edit controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
-if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
-end
-
-
+set(handles.capturenote,'Enable','on');
+set(handles.stopcap,'Enable','off');
+set(handles.singlecap,'Enable','on');
+set(handles.startcap,'Enable','on');
+set(handles.disconnectbutton,'Enable','on');
 
 function capturenote_Callback(hObject, eventdata, handles)
 % hObject    handle to capturenote (see GCBO)
@@ -392,17 +385,7 @@ function capturenote_Callback(hObject, eventdata, handles)
 %        str2double(get(hObject,'String')) returns contents of capturenote as a double
 
 
-% --- Executes during object creation, after setting all properties.
-function capturenote_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to capturenote (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
 
-% Hint: edit controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
-if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
-end
 
 
 % --- Executes on selection change in comport.
@@ -415,32 +398,27 @@ function comport_Callback(hObject, eventdata, handles)
 %        contents{get(hObject,'Value')} returns selected item from comport
 
 
-% --- Executes during object creation, after setting all properties.
-function comport_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to comport (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
 
-% Hint: popupmenu controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
-if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
+
+% --- Executes on button press in outputfileselectbutton.
+function outputfileselectbutton_Callback(hObject, eventdata, handles)
+% hObject    handle to outputfileselectbutton (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+[file, path] = uiputfile('*.csv','Specify output file');
+if(ischar(file))  
+    setappdata(handles.mainpanel,'outputFilePath',[path file]);
 end
+updateOutputFilePath(hObject, eventdata, handles);
 
-
-% --- Executes on button press in pushbutton10.
-function pushbutton10_Callback(hObject, eventdata, handles)
-% hObject    handle to pushbutton10 (see GCBO)
+% --- Executes on button press in outputfileclearbutton.
+function outputfileclearbutton_Callback(hObject, eventdata, handles)
+% hObject    handle to outputfileclearbutton (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-
-
-% --- Executes on button press in pushbutton11.
-function pushbutton11_Callback(hObject, eventdata, handles)
-% hObject    handle to pushbutton11 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
+setappdata(handles.mainpanel,'outputFilePath','');
+updateOutputFilePath(hObject, eventdata, handles);
 
 
 function outputfile_Callback(hObject, eventdata, handles)
@@ -451,18 +429,9 @@ function outputfile_Callback(hObject, eventdata, handles)
 % Hints: get(hObject,'String') returns contents of outputfile as text
 %        str2double(get(hObject,'String')) returns contents of outputfile as a double
 
+ setappdata(handles.mainpanel,'outputFilePath',get(handles.outputfile,'String'));
+updateOutputFilePath(hObject, eventdata, handles);
 
-% --- Executes during object creation, after setting all properties.
-function outputfile_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to outputfile (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: edit controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
-if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
-end
 
 
 % --- Executes when selected object is changed in tooltyperbs.
@@ -489,4 +458,110 @@ setappdata(handles.mainpanel,'toolDefFiles',toolDefFiles);
 
 updateToolDefDisplay(hObject, eventdata, handles);
 
+function statusbox_Callback(hObject, eventdata, handles)
+% hObject    handle to statusbox (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of statusbox as text
+%        str2double(get(hObject,'String')) returns contents of statusbox as a double
+
+
+
+% --- Executes during object creation, after setting all properties.
+function tooldeffile_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to tooldeffile (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+% --- Executes during object creation, after setting all properties.
+function toolid_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to toolid (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: popupmenu controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+set(hObject,'String',num2cell(char(64+(1:9))));
+
+% --- Executes during object creation, after setting all properties.
+function tipcalfile_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to tipcalfile (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+% --- Executes during object creation, after setting all properties.
+function edit3_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to edit3 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+% --- Executes during object creation, after setting all properties.
+function capturenote_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to capturenote (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+% --- Executes during object creation, after setting all properties.
+function comport_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to comport (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: popupmenu controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+% --- Executes during object creation, after setting all properties.
+function outputfile_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to outputfile (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+% --- Executes during object creation, after setting all properties.
+function statusbox_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to statusbox (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
 
