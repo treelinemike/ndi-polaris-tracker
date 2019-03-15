@@ -54,7 +54,7 @@ end
 toolsUsedMask = ~cellfun(@isempty,toolDefFiles(:,1));
 toolsUsed = find(toolsUsedMask);
 if( max(toolsUsed) < 4 )
-    extended_flag = 0;
+%     extended_flag = 0;
     switch(COLLECT_MODE)
         case 0
             gx_cmd_str = 'GX:800B';
@@ -63,7 +63,7 @@ if( max(toolsUsed) < 4 )
     end
     pstat_cmd_str = 'PSTAT:801f';
 else
-    extended_flag = 1;
+%     extended_flag = 1;
     gx_cmd_str = 'GX:A00B';
     pstat_cmd_str = 'PSTAT:A01f';
 end

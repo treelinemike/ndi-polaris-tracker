@@ -22,7 +22,7 @@ function varargout = polarisCollectGUI(varargin)
 
 % Edit the above text to modify the response to help polarisCollectGUI
 
-% Last Modified by GUIDE v2.5 14-Mar-2019 13:16:29
+% Last Modified by GUIDE v2.5 15-Mar-2019 11:07:22
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -70,6 +70,9 @@ setappdata(handles.mainpanel,'toolDefFiles',toolDefFiles);
 setappdata(handles.mainpanel,'outputFilePath','');
 setappdata(handles.mainpanel,'fidDataOut',-1);
 setappdata(handles.mainpanel,'fidSerial',-1);
+setappdata(handles.mainpanel,'gx_cmd_str','');
+setappdata(handles.mainpanel,'pstat_cmd_str','');
+setappdata(handles.mainpanel,'BASE_TOOL_CHAR',64);
 
 % configure various UI components
 updateOutputFilePath(hObject, eventdata, handles);
@@ -79,6 +82,7 @@ set(handles.startcap,'Enable','off');
 set(handles.stopcap,'Enable','off');
 set(handles.singlecap,'Enable','off');
 set(handles.capturenote,'Enable','off');
+set(handles.nummarkers,'Enable','off');
 
 % tip calibration not implemented yet...
 set(handles.tipcalbutton,'Enable','off');
@@ -180,10 +184,14 @@ function connectbutton_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
+% disable connect button, as well as tool definition and output file
+% controls
 set(handles.comport,'Enable','off');
 disableToolDefChange(hObject, eventdata, handles);
 disableOutputFileChange(hObject, eventdata, handles);
 set(handles.connectbutton,'Enable','off');
+set(handles.rbtrack,'Enable','off');
+set(handles.rbid,'Enable','off');
 
 % flag for errors in connection
 connectError = 0;
@@ -244,110 +252,120 @@ if(~connectError)
     % nop
 end
 
-%TODO: implement this, chunk by chunk
-% % % % % make sure tool definition file cell array is the correct size (must be
-% % % % % 9x2)
-% % % % if (min(size(toolDefFiles) == [9,2]) == 0)
-% % % %     error('Incorrect tool file definition cell array size.')
-% % % % end
-% % % % 
-% % % % % determine which tools are used and format GX() calls appropriately
-% % % % toolsUsedMask = ~cellfun(@isempty,toolDefFiles(:,1));
-% % % % toolsUsed = find(toolsUsedMask);
-% % % % if( max(toolsUsed) < 4 )
-% % % %     extended_flag = 0;
-% % % %     switch(COLLECT_MODE)
-% % % %         case 0
-% % % %             gx_cmd_str = 'GX:800B';
-% % % %         case 1
-% % % %             gx_cmd_str = 'GX:9000';
-% % % %     end
-% % % %     pstat_cmd_str = 'PSTAT:801f';
-% % % % else
-% % % %     extended_flag = 1;
-% % % %     gx_cmd_str = 'GX:A00B';
-% % % %     pstat_cmd_str = 'PSTAT:A01f';
-% % % % end
-% % % % 
-% % % % % reset MATLAB instrument handles just to be safe
-% % % % instrreset();
-% % % % 
-% % % % % attempt to automatically find the serial port if not manually specified
-% % % % % note: this relies on the serial port descriptor reported by
-% % % % % the Windows 'chgport' utility
-% % % % if(strcmp(SERIAL_COM_PORT,''))
-% % % %     disp('Attempting to identify correct COM port...');
-% % % %     [~,res]=system('chgport');
-% % % %     [mat,tok] = regexp(res, '([A-Z0-9]+)[\s=]+([\\A-Za-z]+)[0-9]+','match','tokens');
-% % % %     comMatches = {};
-% % % %     for i = 1:length(tok)
-% % % %         if( strcmp(tok{i}{2},'\Device\ProlificSerial') )
-% % % %             comMatches{end+1} = tok{i}{1};
-% % % %         end
-% % % %     end
-% % % %     switch length(comMatches)
-% % % %         case 0
-% % % %             error('COM port not found, set manually!');
-% % % %         case 1
-% % % %             disp(['Detected correct adapter on ' comMatches{1}]);
-% % % %             SERIAL_COM_PORT = comMatches{1};
-% % % %         otherwise
-% % % %             error('Multiple ''ProlificSerial'' devices found, set COM port manually!');
-% % % %     end
-% % % % end
-% % % % 
-% % % % % open COM port using default settings (9600 baud)
-% % % % fid1 = serial(SERIAL_COM_PORT,'BaudRate',9600,'Timeout',SERIAL_TIMEOUT,'Terminator',SERIAL_TERMINATOR);
-% % % % warning off MATLAB:serial:fread:unsuccessfulRead;
-% % % % fopen(fid1);
-% % % % 
-% % % % % send a serial break to reset Polaris
-% % % % % use instrreset() and instrfind() to deal with ghost MATLAB port handles
-% % % % serialbreak(fid1, 10);
-% % % % pause(1);
-% % % % disp(['< ' polarisGetResponse(fid1)]);
-% % % % pause(1);
-% % % % 
-% % % % % produce audible beep as confirmation
-% % % % polarisSendCommand(fid1, 'BEEP:1',1);
-% % % % disp(['< ' polarisGetResponse(fid1)]);
-% % % % 
-% % % % % change communication to 57,600 baud
-% % % % polarisSendCommand(fid1, 'COMM:40000',1);
-% % % % disp(['< ' polarisGetResponse(fid1)]);
-% % % % 
-% % % % % swich MATLAB COM port settings to 57,600 baud
-% % % % fclose(fid1);
-% % % % disp('SWITCHING PC TO 57,000 BAUD');
-% % % % pause(0.5);
-% % % % fid1 = serial(SERIAL_COM_PORT,'BaudRate',57600,'Timeout',SERIAL_TIMEOUT,'Terminator',SERIAL_TERMINATOR);
-% % % % warning off MATLAB:serial:fread:unsuccessfulRead;
-% % % % fopen(fid1);
-% % % % 
-% % % % % produce audible beeps as confimation
-% % % % polarisSendCommand(fid1, 'BEEP:2',1);
-% % % % disp(['< ' polarisGetResponse(fid1)]);
-% % % % 
-% % % % % initialize system
-% % % % polarisSendCommand(fid1, 'INIT:',1);
-% % % % disp(['< ' polarisGetResponse(fid1)]);
-% % % % 
-% % % % % select volume (doing this blindly without querying volumes first)
-% % % % polarisSendCommand(fid1, 'VSEL:1',1);
-% % % % disp(['< ' polarisGetResponse(fid1)]);
-% % % % 
-% % % % % set illuminator rate to 20Hz
-% % % % polarisSendCommand(fid1, 'IRATE:0',1);
-% % % % disp(['< ' polarisGetResponse(fid1)]);
-% % % % 
+% make sure tool definition file cell array is the correct size (must be 9x2)
+toolDefFiles = getappdata(handles.mainpanel,'toolDefFiles');
+if (min(size(toolDefFiles) == [9,2]) == 0)
+    error('Incorrect tool file definition cell array size.')
+end
+
+% determine which tools are used and format GX() calls appropriately
+toolsUsedMask = ~cellfun(@isempty,toolDefFiles(:,1));
+toolsUsed = find(toolsUsedMask);
+if( max(toolsUsed) < 4 ) % ports A,B,C only
+    if( get(handles.rbtrack,'Value') && ~get(handles.rbid,'Value'))
+            gx_cmd_str = 'GX:800B';
+    elseif( ~get(handles.rbtrack,'Value') && get(handles.rbid,'Value'))
+            gx_cmd_str = 'GX:9000';
+    else
+        error('Invalid collection mode.');
+    end
+    pstat_cmd_str = 'PSTAT:801f';
+else % ports A-I
+    if( get(handles.rbtrack,'Value') && ~get(handles.rbid,'Value'))
+        gx_cmd_str = 'GX:A00B';
+    else
+       error('Load only one tool definiton file for tool identification.'); 
+    end
+    pstat_cmd_str = 'PSTAT:A01f';
+end
+setappdata(handles.mainpanel,'gx_cmd_str',gx_cmd_str);
+setappdata(handles.mainpanel,'pstat_cmd_str',pstat_cmd_str);
+
+% reset MATLAB instrument handles just to be safe
+instrreset();
+
+% attempt to automatically find the serial port if not manually specified
+% note: this relies on the serial port descriptor reported by
+% the Windows 'chgport' utility
+comPortValues = get(handles.comport,'String');
+SERIAL_COM_PORT = comPortValues{get(handles.comport,'Value')};
+if(strcmp(SERIAL_COM_PORT,'Auto'))
+    disp('Attempting to identify correct COM port...');
+    [~,res]=system('chgport');
+    [mat,tok] = regexp(res, '([A-Z0-9]+)[\s=]+([\\A-Za-z]+)[0-9]+','match','tokens');
+    comMatches = {};
+    for i = 1:length(tok)
+        if( strcmp(tok{i}{2},'\Device\ProlificSerial') )
+            comMatches{end+1} = tok{i}{1};
+        end
+    end
+    switch length(comMatches)
+        case 0
+            error('COM port not found, set manually!');
+        case 1
+            disp(['Detected correct adapter on ' comMatches{1}]);
+            SERIAL_COM_PORT = comMatches{1};
+        otherwise
+            error('Multiple ''ProlificSerial'' devices found, set COM port manually!');
+    end
+end
+
+
+% open COM port using default settings (9600 baud)
+SERIAL_TERMINATOR = hex2dec('0D');   % 0x0D = 0d13 = CR
+SERIAL_TIMEOUT    = 0.05;            % [s]
+fidSerial = serial(SERIAL_COM_PORT,'BaudRate',9600,'Timeout',SERIAL_TIMEOUT,'Terminator',SERIAL_TERMINATOR);
+warning off MATLAB:serial:fread:unsuccessfulRead;
+fopen(fidSerial)
+setappdata(handles.mainpanel,'fidSerial',fidSerial);
+
+% send a serial break to reset Polaris
+% use instrreset() and instrfind() to deal with ghost MATLAB port handles
+serialbreak(fidSerial, 10);
+pause(1);
+disp(['< ' polarisGetResponse(fidSerial)]);
+
+% produce audible beep as confirmation
+polarisSendCommand(fidSerial, 'BEEP:1',1);
+disp(['< ' polarisGetResponse(fidSerial)]);
+
+% change communication to 57,600 baud
+polarisSendCommand(fidSerial, 'COMM:40000',1);
+disp(['< ' polarisGetResponse(fidSerial)]);
+
+% swich MATLAB COM port settings to 57,600 baud
+fclose(fidSerial);
+disp('SWITCHING PC TO 57,000 BAUD');
+pause(0.5);
+fidSerial = serial(SERIAL_COM_PORT,'BaudRate',57600,'Timeout',SERIAL_TIMEOUT,'Terminator',SERIAL_TERMINATOR);
+warning off MATLAB:serial:fread:unsuccessfulRead;
+fopen(fidSerial);
+
+% produce audible beeps as confimation
+polarisSendCommand(fidSerial, 'BEEP:2',1);
+disp(['< ' polarisGetResponse(fidSerial)]);
+
+% initialize system
+polarisSendCommand(fidSerial, 'INIT:',1);
+disp(['< ' polarisGetResponse(fidSerial)]);
+
+% select volume (doing this blindly without querying volumes first)
+polarisSendCommand(fidSerial, 'VSEL:1',1);
+disp(['< ' polarisGetResponse(fidSerial)]);
+
+% set illuminator rate to 20Hz
+polarisSendCommand(fidSerial, 'IRATE:0',1);
+disp(['< ' polarisGetResponse(fidSerial)]);
+
 % % % % % send tool definition files to Polaris
+BASE_TOOL_CHAR = getappdata(handles.mainpanel,'BASE_TOOL_CHAR');
 % % % % % tool files can be generated with NDI 6D Architect software
 % % % % for toolIdx = 1:length(toolsUsed)
 % % % %     toolNum = toolsUsed(toolIdx);
 % % % %     thisToolFile = toolDefFiles{toolNum,1};
 % % % %     toolFileID = fopen(thisToolFile);
 % % % %     if( isempty(toolFileID) )
-% % % %         fclose(fid1);
+% % % %         fclose(fidSerial);
 % % % %         error('Invalid tool file and/or path.');
 % % % %     end
 % % % %     disp(['INITIALIZING PORT ' char(BASE_TOOL_CHAR+toolNum) ' WITH TOOL FILE: ' thisToolFile(max(strfind(thisToolFile,'\'))+1:end)]);
@@ -357,8 +375,8 @@ end
 % % % %     bytePos = 0;
 % % % %     while (numBytes == 64)
 % % % %         str = ['PVWR:' char(BASE_TOOL_CHAR+toolNum) dec2hex(bytePos,4) reshape(dec2hex(readBytes,2)',1,[])];
-% % % %         polarisSendCommand(fid1,str,1);
-% % % %         disp(['< ' polarisGetResponse(fid1)]);
+% % % %         polarisSendCommand(fidSerial,str,1);
+% % % %         disp(['< ' polarisGetResponse(fidSerial)]);
 % % % %         [readBytes, numBytes] = fread(toolFileID,64);
 % % % %         bytePos = bytePos + 64;
 % % % %     end
@@ -366,29 +384,29 @@ end
 % % % %     % read any remaining bytes, padding with FF
 % % % %     if(numBytes > 0)
 % % % %         str = ['PVWR:' char(BASE_TOOL_CHAR+toolNum) dec2hex(bytePos,4) reshape(dec2hex(readBytes,2)',1,[]) repmat('FF',1,64-numBytes)];
-% % % %         polarisSendCommand(fid1,str,1);
-% % % %         disp(['< ' polarisGetResponse(fid1)]);
+% % % %         polarisSendCommand(fidSerial,str,1);
+% % % %         disp(['< ' polarisGetResponse(fidSerial)]);
 % % % %     end
 % % % %     
 % % % %     % close binary tool file
 % % % %     fclose(toolFileID);
 % % % %     
 % % % %     % initialize port handle for the tool
-% % % %     polarisSendCommand(fid1, ['PINIT:' char(BASE_TOOL_CHAR+toolNum)],1);
-% % % %     disp(['< ' polarisGetResponse(fid1)]);
+% % % %     polarisSendCommand(fidSerial, ['PINIT:' char(BASE_TOOL_CHAR+toolNum)],1);
+% % % %     disp(['< ' polarisGetResponse(fidSerial)]);
 % % % %     
 % % % %     % enable tracking for the tool
-% % % %     polarisSendCommand(fid1, ['PENA:' char(BASE_TOOL_CHAR+toolNum) toolDefFiles{toolNum,2}],1);
-% % % %     disp(['< ' polarisGetResponse(fid1)]);
+% % % %     polarisSendCommand(fidSerial, ['PENA:' char(BASE_TOOL_CHAR+toolNum) toolDefFiles{toolNum,2}],1);
+% % % %     disp(['< ' polarisGetResponse(fidSerial)]);
 % % % % end
 % % % % 
 % % % % % confirm tool configuration
-% % % % polarisSendCommand(fid1, pstat_cmd_str,1);
-% % % % disp(['< ' polarisGetResponse(fid1)]);
+% % % % polarisSendCommand(fidSerial, pstat_cmd_str,1);
+% % % % disp(['< ' polarisGetResponse(fidSerial)]);
 % % % % 
 % % % % % enter tracking mode
-% % % % polarisSendCommand(fid1, 'TSTART:',1);
-% % % % disp(['< ' polarisGetResponse(fid1)]);
+% % % % polarisSendCommand(fidSerial, 'TSTART:',1);
+% % % % disp(['< ' polarisGetResponse(fidSerial)]);
 
 
 
@@ -440,6 +458,8 @@ set(handles.disconnectbutton,'Enable','off');
 set(handles.singlecap,'Enable','off');
 set(handles.startcap,'Enable','off');
 set(handles.capturenote,'Enable','off');
+set(handles.rbtrack,'Enable','on');
+set(handles.rbid,'Enable','on');
 
 % --- Executes on button press in disconnectbutton.
 function disconnectbutton_Callback(hObject, eventdata, handles)
@@ -719,6 +739,19 @@ end
 set(hObject,'String',num2cell(char(64+(1:9))));
 
 % --- Executes during object creation, after setting all properties.
+function nummarkers_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to nummarkers (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: popupmenu controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+set(hObject,'String',num2cell(3:16));
+
+% --- Executes during object creation, after setting all properties.
 function tipcalfile_CreateFcn(hObject, eventdata, handles)
 % hObject    handle to tipcalfile (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -790,3 +823,57 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
     set(hObject,'BackgroundColor','white');
 end
 
+
+
+% --- Executes on selection change in nummarkers.
+function nummarkers_Callback(hObject, eventdata, handles)
+% hObject    handle to nummarkers (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: contents = cellstr(get(hObject,'String')) returns nummarkers contents as cell array
+%        contents{get(hObject,'Value')} returns selected item from nummarkers
+
+
+
+
+
+% --- Executes when selected object is changed in capmoderbs.
+function capmoderbs_SelectionChangedFcn(hObject, eventdata, handles)
+% hObject    handle to the selected object in capmoderbs 
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+if( get(handles.rbtrack,'Value') && ~get(handles.rbid,'Value'))
+    set(handles.nummarkers,'Enable','off');
+elseif( ~get(handles.rbtrack,'Value') && get(handles.rbid,'Value'))
+    set(handles.nummarkers,'Enable','on');
+end
+
+% send command to Polaris system
+function polarisSendCommand(comPortHandle, cmdStr, varargin)
+
+realStr = [cmdStr polarisCRC16(0,cmdStr)];
+fprintf(comPortHandle,realStr); % note: terminator added automatically (default fprintf format is %s\n
+
+if(nargin > 2 && varargin{1} == 1)
+    disp(['> ' strtrim(cmdStr)]);
+end
+
+% read response from Polaris system
+function respStr = polarisGetResponse(comPortHandle)
+
+resp = strtrim(reshape(char(fgetl(comPortHandle)),1,[]));
+if(length(resp) < 5)
+    fclose(comPortHandle);
+    error('Invalid (or no) response from Polaris.');
+end
+
+% split off CRC
+respCRC = strtrim(resp(end-3:end));
+respStr = strtrim(resp(1:end-4));
+
+% check CRC
+if(~strcmp(respCRC,polarisCRC16(0,respStr)))
+    fclose(comPortHandle);
+    error('CRC Mismatch');
+end
