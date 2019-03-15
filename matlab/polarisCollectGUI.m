@@ -73,6 +73,8 @@ setappdata(handles.mainpanel,'fidSerial',-1);
 setappdata(handles.mainpanel,'gx_cmd_str','');
 setappdata(handles.mainpanel,'pstat_cmd_str','');
 setappdata(handles.mainpanel,'BASE_TOOL_CHAR',64);
+setappdata(handles.mainpanel,'toolsUsed',[]);
+setappdata(handles.mainpanel,'gx_transform_map',[6 7 8 10 11 12 14 15 16]);
 
 % configure various UI components
 updateOutputFilePath(hObject, eventdata, handles);
@@ -258,6 +260,7 @@ if(~connectError)
     % determine which tools are used and format GX() calls appropriately
     toolsUsedMask = ~cellfun(@isempty,toolDefFiles(:,1));
     toolsUsed = find(toolsUsedMask);
+    setappdata(handles.mainpanel,'toolsUsed',toolsUsed);
     if( max(toolsUsed) < 4 ) % ports A,B,C only
         if( get(handles.rbtrack,'Value') && ~get(handles.rbid,'Value'))
             gx_cmd_str = 'GX:800B';
@@ -346,6 +349,7 @@ if(~connectError)
     fidSerial = serial(SERIAL_COM_PORT,'BaudRate',57600,'Timeout',SERIAL_TIMEOUT,'Terminator',SERIAL_TERMINATOR);
     warning off MATLAB:serial:fread:unsuccessfulRead;
     fopen(fidSerial);
+    setappdata(handles.mainpanel,'fidSerial',fidSerial);
     
     % produce audible beeps as confimation
     polarisSendCommand(fidSerial, 'BEEP:2',1);
@@ -476,8 +480,10 @@ function disconnectbutton_Callback(hObject, eventdata, handles)
 % hObject    handle to disconnectbutton (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-fidSerial = getappdata(handles.mainpanel,'fidSerial')
-fidDataOut = setappdata(handles.mainpanel,'fidDataOut',-1);
+fidSerial  = getappdata(handles.mainpanel,'fidSerial');
+fidDataOut = getappdata(handles.mainpanel,'fidDataOut');
+
+% fwrite(fidDataOut,'test!');
 
 % close output file
 fclose(fidDataOut);
@@ -489,11 +495,13 @@ disp(['< ' polarisGetResponse(fidSerial)]);
 % close communication
 fclose(fidSerial);
 
+% clear FIDs
+setappdata(handles.mainpanel,'fidSerial',-1);
+setappdata(handles.mainpanel,'fidDataOut',-1);
+
 % update UI controls
+set(handles.capturenote,'String','');
 disconnectUIChange(hObject, eventdata, handles);
-fidDataOut = getappdata(handles.mainpanel,'fidDataOut');
-fwrite(fidDataOut,'test!');
-fclose(fidDataOut);
 
 
 % --- Executes on selection change in toolid.
@@ -612,8 +620,64 @@ set(handles.startcap,'Enable','off');
 set(handles.singlecap,'Enable','off');
 set(handles.disconnectbutton,'Enable','off');
 
-% DO STUFF
-pause(0.5);
+fidSerial        = getappdata(handles.mainpanel,'fidSerial');
+fidDataOut       = getappdata(handles.mainpanel,'fidDataOut');
+gx_cmd_str       = getappdata(handles.mainpanel,'gx_cmd_str');
+gx_transform_map = getappdata(handles.mainpanel,'gx_transform_map');
+toolsUsed        = getappdata(handles.mainpanel,'toolsUsed');
+BASE_TOOL_CHAR   = getappdata(handles.mainpanel,'BASE_TOOL_CHAR')
+
+% get the capture note, and remove any commas
+captureNoteString = get(handles.capturenote,'String');
+captureNoteString(regexp(captureNoteString,','))=[];
+
+% query tool positions
+polarisSendCommand(fidSerial, gx_cmd_str);
+thisResp = polarisGetResponse(fidSerial);
+disp(['< ' thisResp]);
+        
+% get a unix timestamp for sanity check and future use (may want the actual DATE)
+unixtimestamp = posixtime(datetime('now')); % recover with datetime(unixtimestamp,'ConvertFrom','posixtime')
+        
+% extract quaternion, position, timestamp, and estimated error for each tool
+respParts = strsplit(thisResp,char(10));
+thisStatusStr = respParts{end};
+
+for toolIdx = 1:length(toolsUsed)
+    toolNum = toolsUsed(toolIdx);
+    thisTransformStr = respParts{ gx_transform_map(toolNum) };
+    if(length(thisTransformStr) == 51)
+        q = zeros(4,1);
+        t = zeros(3,1);
+        
+        % extract rotational component (quaternion)
+        for qIdx = 1:4
+            startIdx = (qIdx-1)*6 + 1;
+            q(qIdx) = str2num(thisTransformStr(startIdx:startIdx+5))/10000;
+        end
+        
+        % extract translational component
+        for tIdx = 1:3
+            startIdx = (tIdx-1)*7 + 25;
+            t(tIdx) = str2num(thisTransformStr(startIdx:startIdx+6))/100;
+        end
+        
+        % extract error
+        err = str2num(thisTransformStr(46:end))/10000;
+        
+        % extract timestamp
+        startIdx = (toolNum-1)*8+1;
+        timestamp = hex2dec(thisStatusStr(startIdx:startIdx+7))/60;
+        
+        % display tool tracking information
+        fprintf('%0.4f,%0.2f,%s,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%+0.2f,%+0.2f,%+0.2f,%+0.4f,%s\n', timestamp, unixtimestamp, char(BASE_TOOL_CHAR+toolNum), q(1), q(2), q(3), q(4), t(1), t(2), t(3), err, captureNoteString);
+        fprintf(fidDataOut,'%0.4f,%0.2f,%s,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%+0.2f,%+0.2f,%+0.2f,%+0.4f,%s\n', timestamp, unixtimestamp, char(BASE_TOOL_CHAR+toolNum), q(1), q(2), q(3), q(4), t(1), t(2), t(3), err, captureNoteString);
+    else
+        disp(['Tool ' char(BASE_TOOL_CHAR+toolNum) ' unexpected transform result: ' thisTransformStr]);
+    end
+end
+
+% reset GUI controls
 set(handles.capturenote,'Enable','on');
 set(handles.startcap,'Enable','on');
 set(handles.singlecap,'Enable','on');
