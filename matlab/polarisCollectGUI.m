@@ -244,6 +244,156 @@ if(~connectError)
     % nop
 end
 
+%TODO: implement this, chunk by chunk
+% % % % % make sure tool definition file cell array is the correct size (must be
+% % % % % 9x2)
+% % % % if (min(size(toolDefFiles) == [9,2]) == 0)
+% % % %     error('Incorrect tool file definition cell array size.')
+% % % % end
+% % % % 
+% % % % % determine which tools are used and format GX() calls appropriately
+% % % % toolsUsedMask = ~cellfun(@isempty,toolDefFiles(:,1));
+% % % % toolsUsed = find(toolsUsedMask);
+% % % % if( max(toolsUsed) < 4 )
+% % % %     extended_flag = 0;
+% % % %     switch(COLLECT_MODE)
+% % % %         case 0
+% % % %             gx_cmd_str = 'GX:800B';
+% % % %         case 1
+% % % %             gx_cmd_str = 'GX:9000';
+% % % %     end
+% % % %     pstat_cmd_str = 'PSTAT:801f';
+% % % % else
+% % % %     extended_flag = 1;
+% % % %     gx_cmd_str = 'GX:A00B';
+% % % %     pstat_cmd_str = 'PSTAT:A01f';
+% % % % end
+% % % % 
+% % % % % reset MATLAB instrument handles just to be safe
+% % % % instrreset();
+% % % % 
+% % % % % attempt to automatically find the serial port if not manually specified
+% % % % % note: this relies on the serial port descriptor reported by
+% % % % % the Windows 'chgport' utility
+% % % % if(strcmp(SERIAL_COM_PORT,''))
+% % % %     disp('Attempting to identify correct COM port...');
+% % % %     [~,res]=system('chgport');
+% % % %     [mat,tok] = regexp(res, '([A-Z0-9]+)[\s=]+([\\A-Za-z]+)[0-9]+','match','tokens');
+% % % %     comMatches = {};
+% % % %     for i = 1:length(tok)
+% % % %         if( strcmp(tok{i}{2},'\Device\ProlificSerial') )
+% % % %             comMatches{end+1} = tok{i}{1};
+% % % %         end
+% % % %     end
+% % % %     switch length(comMatches)
+% % % %         case 0
+% % % %             error('COM port not found, set manually!');
+% % % %         case 1
+% % % %             disp(['Detected correct adapter on ' comMatches{1}]);
+% % % %             SERIAL_COM_PORT = comMatches{1};
+% % % %         otherwise
+% % % %             error('Multiple ''ProlificSerial'' devices found, set COM port manually!');
+% % % %     end
+% % % % end
+% % % % 
+% % % % % open COM port using default settings (9600 baud)
+% % % % fid1 = serial(SERIAL_COM_PORT,'BaudRate',9600,'Timeout',SERIAL_TIMEOUT,'Terminator',SERIAL_TERMINATOR);
+% % % % warning off MATLAB:serial:fread:unsuccessfulRead;
+% % % % fopen(fid1);
+% % % % 
+% % % % % send a serial break to reset Polaris
+% % % % % use instrreset() and instrfind() to deal with ghost MATLAB port handles
+% % % % serialbreak(fid1, 10);
+% % % % pause(1);
+% % % % disp(['< ' polarisGetResponse(fid1)]);
+% % % % pause(1);
+% % % % 
+% % % % % produce audible beep as confirmation
+% % % % polarisSendCommand(fid1, 'BEEP:1',1);
+% % % % disp(['< ' polarisGetResponse(fid1)]);
+% % % % 
+% % % % % change communication to 57,600 baud
+% % % % polarisSendCommand(fid1, 'COMM:40000',1);
+% % % % disp(['< ' polarisGetResponse(fid1)]);
+% % % % 
+% % % % % swich MATLAB COM port settings to 57,600 baud
+% % % % fclose(fid1);
+% % % % disp('SWITCHING PC TO 57,000 BAUD');
+% % % % pause(0.5);
+% % % % fid1 = serial(SERIAL_COM_PORT,'BaudRate',57600,'Timeout',SERIAL_TIMEOUT,'Terminator',SERIAL_TERMINATOR);
+% % % % warning off MATLAB:serial:fread:unsuccessfulRead;
+% % % % fopen(fid1);
+% % % % 
+% % % % % produce audible beeps as confimation
+% % % % polarisSendCommand(fid1, 'BEEP:2',1);
+% % % % disp(['< ' polarisGetResponse(fid1)]);
+% % % % 
+% % % % % initialize system
+% % % % polarisSendCommand(fid1, 'INIT:',1);
+% % % % disp(['< ' polarisGetResponse(fid1)]);
+% % % % 
+% % % % % select volume (doing this blindly without querying volumes first)
+% % % % polarisSendCommand(fid1, 'VSEL:1',1);
+% % % % disp(['< ' polarisGetResponse(fid1)]);
+% % % % 
+% % % % % set illuminator rate to 20Hz
+% % % % polarisSendCommand(fid1, 'IRATE:0',1);
+% % % % disp(['< ' polarisGetResponse(fid1)]);
+% % % % 
+% % % % % send tool definition files to Polaris
+% % % % % tool files can be generated with NDI 6D Architect software
+% % % % for toolIdx = 1:length(toolsUsed)
+% % % %     toolNum = toolsUsed(toolIdx);
+% % % %     thisToolFile = toolDefFiles{toolNum,1};
+% % % %     toolFileID = fopen(thisToolFile);
+% % % %     if( isempty(toolFileID) )
+% % % %         fclose(fid1);
+% % % %         error('Invalid tool file and/or path.');
+% % % %     end
+% % % %     disp(['INITIALIZING PORT ' char(BASE_TOOL_CHAR+toolNum) ' WITH TOOL FILE: ' thisToolFile(max(strfind(thisToolFile,'\'))+1:end)]);
+% % % %     
+% % % %     % read 64-byte clumps from binary file
+% % % %     [readBytes, numBytes] = fread(toolFileID,64);
+% % % %     bytePos = 0;
+% % % %     while (numBytes == 64)
+% % % %         str = ['PVWR:' char(BASE_TOOL_CHAR+toolNum) dec2hex(bytePos,4) reshape(dec2hex(readBytes,2)',1,[])];
+% % % %         polarisSendCommand(fid1,str,1);
+% % % %         disp(['< ' polarisGetResponse(fid1)]);
+% % % %         [readBytes, numBytes] = fread(toolFileID,64);
+% % % %         bytePos = bytePos + 64;
+% % % %     end
+% % % %     
+% % % %     % read any remaining bytes, padding with FF
+% % % %     if(numBytes > 0)
+% % % %         str = ['PVWR:' char(BASE_TOOL_CHAR+toolNum) dec2hex(bytePos,4) reshape(dec2hex(readBytes,2)',1,[]) repmat('FF',1,64-numBytes)];
+% % % %         polarisSendCommand(fid1,str,1);
+% % % %         disp(['< ' polarisGetResponse(fid1)]);
+% % % %     end
+% % % %     
+% % % %     % close binary tool file
+% % % %     fclose(toolFileID);
+% % % %     
+% % % %     % initialize port handle for the tool
+% % % %     polarisSendCommand(fid1, ['PINIT:' char(BASE_TOOL_CHAR+toolNum)],1);
+% % % %     disp(['< ' polarisGetResponse(fid1)]);
+% % % %     
+% % % %     % enable tracking for the tool
+% % % %     polarisSendCommand(fid1, ['PENA:' char(BASE_TOOL_CHAR+toolNum) toolDefFiles{toolNum,2}],1);
+% % % %     disp(['< ' polarisGetResponse(fid1)]);
+% % % % end
+% % % % 
+% % % % % confirm tool configuration
+% % % % polarisSendCommand(fid1, pstat_cmd_str,1);
+% % % % disp(['< ' polarisGetResponse(fid1)]);
+% % % % 
+% % % % % enter tracking mode
+% % % % polarisSendCommand(fid1, 'TSTART:',1);
+% % % % disp(['< ' polarisGetResponse(fid1)]);
+
+
+
+
+
 % adjust UI to new mode (either error out or prepare to collect)
 if(~connectError)
     set(handles.disconnectbutton,'Enable','on');
