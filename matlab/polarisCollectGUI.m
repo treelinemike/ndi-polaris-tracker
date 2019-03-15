@@ -114,13 +114,14 @@ set(handles.rbstatic,'Enable','on');
 set(handles.rbdynamic,'Enable','on');
 set(handles.tooldefbutton,'Enable','on');
 set(handles.tooldefclearbutton,'Enable','on');
-set(handles.tipcalbutton,'Enable','on');
-set(handles.tipcalclearbutton,'Enable','on');
+%TODO: uncomment these lines when tip calibration is implemented
+%set(handles.tipcalbutton,'Enable','on');
+%set(handles.tipcalclearbutton,'Enable','on');
 
 function updateOutputFilePath(hObject, eventdata, handles)
 outputFilePath = getappdata(handles.mainpanel,'outputFilePath');
 if(isempty(outputFilePath))
-    set(handles.outputfile,'String','No output file selected!');
+    set(handles.outputfile,'String','trial001.csv');
 else
     lastSlashIdx = find(outputFilePath == '\',1,'last');
     if(~isempty(lastSlashIdx))
@@ -193,29 +194,43 @@ if(~connectError)
     % get desired output file (full path and filename)
     outputFilePath = getappdata(handles.mainpanel,'outputFilePath');
     
-    % by default, look for trialxxx.csv files in the current directory and add the next one...
+    % if the desired output path is not specificed, default to trial001.csv
+    % (or similar)
     if(isempty(outputFilePath))
+        
+        % try to find trialxxx.csv files in current directory
         [mat,tok] = regexp(string(ls()),'trial([0-9]+).csv','match','tokens');
         newFileIdx = max(arrayfun(@str2num,[tok{:}]))+1;
         if(isempty(newFileIdx))
             newFileIdx = 1;
         end
-        outputFilePath = ['trial' sprintf('%03d',newFileIdx) '.csv'];
-        set(handles.outputfile,'String',outputFilePath);
-    else
-        % avoid overwriting file
-        % TODO: make this more robust
-        if(isfile(outputFilePath))
-           error('File already exists!');
+        
+        % replace outputFilePath with correct default filename
+        outputFilePath = sprintf('trial%03d.csv',newFileIdx);
+        
+    elseif(isfile(outputFilePath))
+        % desired output file is specified and it already exists
+        % if it exists already, we need to add a number
+        [mat,tok] = regexp(outputFilePath,'(?:^|\\)(\w+?)([0-9])*(\.\w+)$','match','tokens');
+        if(isempty(tok) || ~prod( size(tok{1}) == [1 3]) )
+            error('Selected filename could not be parsed.');
         end
+        newFileIdx = str2num(tok{1}{2})+1;  % don't use str2double here b/c gives NaN rather than [] for null input...
+        if(isempty(newFileIdx))
+            newFileIdx =1 ;
+        end
+        pathIdx = find(outputFilePath == '\',1,'last');
+        outputFilePath = [outputFilePath(1:pathIdx) tok{1}{1} sprintf('%03d',newFileIdx) tok{1}{3}];
     end
     
-    
-    
+    % display the acutal file name being used 
+    setappdata(handles.mainpanel,'outputFilePath',outputFilePath);
+    updateOutputFilePath(hObject, eventdata, handles)
+        
     % open the output file
     fidDataOut = fopen(outputFilePath,'w');
     
-    % set error flag if file didn't load
+    % set error flag if file couldn't be opened for writing
     % otherwise store fid for use (writing, closing) elsewhere
     if( fidDataOut == -1 )
        connectError = 1; 
