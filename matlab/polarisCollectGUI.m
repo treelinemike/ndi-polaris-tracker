@@ -75,6 +75,7 @@ setappdata(handles.mainpanel,'pstat_cmd_str','');
 setappdata(handles.mainpanel,'BASE_TOOL_CHAR',64);
 setappdata(handles.mainpanel,'toolsUsed',[]);
 setappdata(handles.mainpanel,'gx_transform_map',[6 7 8 10 11 12 14 15 16]);
+setappdata(handles.mainpanel,'endTrackingFlag',0);
 
 % configure various UI components
 updateOutputFilePath(hObject, eventdata, handles);
@@ -167,7 +168,7 @@ switch(thisToolType)
         set(handles.rbdynamic,'Value',1);
         set(handles.rbstatic,'Value',0);
 end
-
+drawnow;
 
 % --- Outputs from this function are returned to the command line.
 function varargout = polarisCollectGUI_OutputFcn(hObject, eventdata, handles)
@@ -198,57 +199,6 @@ set(handles.rbid,'Enable','off');
 % flag for errors in connection
 connectError = 0;
 
-% load output file
-if(~connectError)
-    
-    % get desired output file (full path and filename)
-    outputFilePath = getappdata(handles.mainpanel,'outputFilePath');
-    
-    % if the desired output path is not specificed, default to trial001.csv
-    % (or similar)
-    if(isempty(outputFilePath))
-        
-        % try to find trialxxx.csv files in current directory
-        [mat,tok] = regexp(string(ls()),'trial([0-9]+).csv','match','tokens');
-        newFileIdx = max(arrayfun(@str2num,[tok{:}]))+1;
-        if(isempty(newFileIdx))
-            newFileIdx = 1;
-        end
-        
-        % replace outputFilePath with correct default filename
-        outputFilePath = sprintf('trial%03d.csv',newFileIdx);
-        
-    elseif(isfile(outputFilePath))
-        % desired output file is specified and it already exists
-        % if it exists already, we need to add a number
-        [mat,tok] = regexp(outputFilePath,'(?:^|\\)(\w+?)([0-9])*(\.\w+)$','match','tokens');
-        if(isempty(tok) || ~prod( size(tok{1}) == [1 3]) )
-            error('Selected filename could not be parsed.');
-        end
-        newFileIdx = str2num(tok{1}{2})+1;  % don't use str2double here b/c gives NaN rather than [] for null input...
-        if(isempty(newFileIdx))
-            newFileIdx =1 ;
-        end
-        pathIdx = find(outputFilePath == '\',1,'last');
-        outputFilePath = [outputFilePath(1:pathIdx) tok{1}{1} sprintf('%03d',newFileIdx) tok{1}{3}];
-    end
-    
-    % display the acutal file name being used
-    setappdata(handles.mainpanel,'outputFilePath',outputFilePath);
-    updateOutputFilePath(hObject, eventdata, handles)
-    
-    % open the output file
-    fidDataOut = fopen(outputFilePath,'w');
-    
-    % set error flag if file couldn't be opened for writing
-    % otherwise store fid for use (writing, closing) elsewhere
-    if( fidDataOut == -1 )
-        connectError = 1;
-    else
-        setappdata(handles.mainpanel,'fidDataOut',fidDataOut);
-    end
-end
-
 % load tool definition files
 if(~connectError)
     % make sure tool definition file cell array is the correct size (must be 9x2)
@@ -261,7 +211,10 @@ if(~connectError)
     toolsUsedMask = ~cellfun(@isempty,toolDefFiles(:,1));
     toolsUsed = find(toolsUsedMask);
     setappdata(handles.mainpanel,'toolsUsed',toolsUsed);
-    if( max(toolsUsed) < 4 ) % ports A,B,C only
+    if(length(toolsUsed) == 0)
+        waitfor(msgbox('No tool definition file(s) specified!'));
+        connectError = 1;
+    elseif( max(toolsUsed) < 4 ) % ports A,B,C only
         if( get(handles.rbtrack,'Value') && ~get(handles.rbid,'Value'))
             gx_cmd_str = 'GX:800B';
         elseif( ~get(handles.rbtrack,'Value') && get(handles.rbid,'Value'))
@@ -273,15 +226,20 @@ if(~connectError)
     else % ports A-I
         if( get(handles.rbtrack,'Value') && ~get(handles.rbid,'Value'))
             gx_cmd_str = 'GX:A00B';
+            pstat_cmd_str = 'PSTAT:A01f';
         else
-            error('Load only one tool definiton file for tool identification.');
+            waitfor(msgbox('Tool identification supported with tool definition files in ports A, B, and C only.'));
+            connectError = 1;
         end
-        pstat_cmd_str = 'PSTAT:A01f';
     end
+end
+
+% if tool definition files loaded successfully, put GX and PSTAT strings in
+% storage
+if(~connectError)
     setappdata(handles.mainpanel,'gx_cmd_str',gx_cmd_str);
     setappdata(handles.mainpanel,'pstat_cmd_str',pstat_cmd_str);
 end
-
 
 % attempt to automatically find the serial port if not manually specified
 % note: this relies on the serial port descriptor reported by
@@ -306,17 +264,20 @@ if(~connectError)
         end
         switch length(comMatches)
             case 0
-                error('COM port not found, set manually!');
+                waitfor(msgbox('COM port not found, set manually!'));
+                connectError = 1;
             case 1
                 disp(['Detected correct adapter on ' comMatches{1}]);
                 SERIAL_COM_PORT = comMatches{1};
             otherwise
-                error('Multiple ''ProlificSerial'' devices found, set COM port manually!');
+                waitfor(msgbox('Multiple ''ProlificSerial'' devices found, set COM port manually!'));
+                connectError = 1;
         end
     end
-    
-    
-    % open COM port using default settings (9600 baud)
+end
+
+% open COM port using default settings (9600 baud)
+if(~connectError)
     SERIAL_TERMINATOR = hex2dec('0D');   % 0x0D = 0d13 = CR
     SERIAL_TIMEOUT    = 0.05;            % [s]
     fidSerial = serial(SERIAL_COM_PORT,'BaudRate',9600,'Timeout',SERIAL_TIMEOUT,'Terminator',SERIAL_TERMINATOR);
@@ -332,7 +293,7 @@ if(~connectError)
     % use instrreset() and instrfind() to deal with ghost MATLAB port handles
     serialbreak(fidSerial, 10);
     pause(1);
-    disp(['< ' polarisGetResponse(fidSerial)]);
+    disp(['< ' polarisGetResponse(fidSerial)]);  %TODO: Catch serial timeout errors that occurr if attempting to connect via wrong port
     
     % produce audible beep as confirmation
     polarisSendCommand(fidSerial, 'BEEP:1',1);
@@ -426,36 +387,76 @@ if(~connectError)
     disp(['< ' polarisGetResponse(fidSerial)]);
 end
 
+% load output file
+if(~connectError)
+    
+    % get desired output file (full path and filename)
+    outputFilePath = getappdata(handles.mainpanel,'outputFilePath');
+    
+    % if the desired output path is not specificed, default to trial001.csv
+    % (or similar)
+    if(isempty(outputFilePath))
+        
+        % try to find trialxxx.csv files in current directory
+        [mat,tok] = regexp(string(ls()),'trial([0-9]+).csv','match','tokens');
+        newFileIdx = max(arrayfun(@str2num,[tok{:}]))+1;
+        if(isempty(newFileIdx))
+            newFileIdx = 1;
+        end
+        
+        % replace outputFilePath with correct default filename
+        outputFilePath = sprintf('trial%03d.csv',newFileIdx);
+        
+    elseif(isfile(outputFilePath))
+        % desired output file is specified and it already exists
+        % if it exists already, we need to add a number
+        [mat,tok] = regexp(outputFilePath,'(?:^|\\)(\w+?)([0-9])*(\.\w+)$','match','tokens');
+        if(isempty(tok) || ~prod( size(tok{1}) == [1 3]) )
+            error('Selected filename could not be parsed.');
+        end
+        newFileIdx = str2num(tok{1}{2})+1;  % don't use str2double here b/c gives NaN rather than [] for null input...
+        if(isempty(newFileIdx))
+            newFileIdx =1 ;
+        end
+        pathIdx = find(outputFilePath == '\',1,'last');
+        outputFilePath = [outputFilePath(1:pathIdx) tok{1}{1} sprintf('%03d',newFileIdx) tok{1}{3}];
+    end
+    
+    % display the acutal file name being used
+    setappdata(handles.mainpanel,'outputFilePath',outputFilePath);
+    updateOutputFilePath(hObject, eventdata, handles)
+    
+    % open the output file
+    fidDataOut = fopen(outputFilePath,'w');
+    
+    % set error flag if file couldn't be opened for writing
+    % otherwise store fid for use (writing, closing) elsewhere
+    if( fidDataOut == -1 )
+        connectError = 1;
+    else
+        setappdata(handles.mainpanel,'fidDataOut',fidDataOut);
+    end
+end
+
+
 % adjust UI to new mode (either error out or prepare to collect)
 if(~connectError)
     set(handles.disconnectbutton,'Enable','on');
     set(handles.singlecap,'Enable','on');
     set(handles.startcap,'Enable','on');
-    set(handles.capturenote,'Enable','on');
+    if(get(handles.rbtrack,'Value') == 1)
+        set(handles.capturenote,'Enable','on');
+    end
     
     % TEST CODE... THIS NEEDS TO BE REMOVED
     % msgbox(handles.comport.String{handles.comport.Value});
     % set(handles.connectbutton,'String','Disconnect');
     for i = 1:10
-        
         handles.statusbox.String = [handles.statusbox.String;{num2str(i)}];
-        %    handles.statusbox.Value = i;
         handles.statusbox.Value = length(handles.statusbox.String);
-        
-        %     if(isempty(handles.statusbox.String))
-        %         handles.statusbox.String = {num2str(i)};
-        %     else
-        %         disp(['Trying: ' ]);
-        %         [handles.statusbox.String; {num2str(i)}]
-        %         handles.statusbox.String = [handles.statusbox.String; {num2str(i)}];
-        %     end
-        %     set(handles.statusbox,'String',[handles.statusbox.String char(10) num2str(i)]);
         drawnow;
         pause(0.1);
     end
-    
-    
-    
     
 else
     disconnectUIChange(hObject, eventdata, handles);
@@ -620,65 +621,12 @@ set(handles.startcap,'Enable','off');
 set(handles.singlecap,'Enable','off');
 set(handles.disconnectbutton,'Enable','off');
 
-fidSerial        = getappdata(handles.mainpanel,'fidSerial');
-fidDataOut       = getappdata(handles.mainpanel,'fidDataOut');
-gx_cmd_str       = getappdata(handles.mainpanel,'gx_cmd_str');
-gx_transform_map = getappdata(handles.mainpanel,'gx_transform_map');
-toolsUsed        = getappdata(handles.mainpanel,'toolsUsed');
-BASE_TOOL_CHAR   = getappdata(handles.mainpanel,'BASE_TOOL_CHAR')
-
-% get the capture note, and remove any commas
-captureNoteString = get(handles.capturenote,'String');
-captureNoteString(regexp(captureNoteString,','))=[];
-
-% query tool positions
-polarisSendCommand(fidSerial, gx_cmd_str);
-thisResp = polarisGetResponse(fidSerial);
-disp(['< ' thisResp]);
-        
-% get a unix timestamp for sanity check and future use (may want the actual DATE)
-unixtimestamp = posixtime(datetime('now')); % recover with datetime(unixtimestamp,'ConvertFrom','posixtime')
-        
-% extract quaternion, position, timestamp, and estimated error for each tool
-respParts = strsplit(thisResp,char(10));
-thisStatusStr = respParts{end};
-
-for toolIdx = 1:length(toolsUsed)
-    toolNum = toolsUsed(toolIdx);
-    thisTransformStr = respParts{ gx_transform_map(toolNum) };
-    if(length(thisTransformStr) == 51)
-        q = zeros(4,1);
-        t = zeros(3,1);
-        
-        % extract rotational component (quaternion)
-        for qIdx = 1:4
-            startIdx = (qIdx-1)*6 + 1;
-            q(qIdx) = str2num(thisTransformStr(startIdx:startIdx+5))/10000;
-        end
-        
-        % extract translational component
-        for tIdx = 1:3
-            startIdx = (tIdx-1)*7 + 25;
-            t(tIdx) = str2num(thisTransformStr(startIdx:startIdx+6))/100;
-        end
-        
-        % extract error
-        err = str2num(thisTransformStr(46:end))/10000;
-        
-        % extract timestamp
-        startIdx = (toolNum-1)*8+1;
-        timestamp = hex2dec(thisStatusStr(startIdx:startIdx+7))/60;
-        
-        % display tool tracking information
-        fprintf('%0.4f,%0.2f,%s,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%+0.2f,%+0.2f,%+0.2f,%+0.4f,%s\n', timestamp, unixtimestamp, char(BASE_TOOL_CHAR+toolNum), q(1), q(2), q(3), q(4), t(1), t(2), t(3), err, captureNoteString);
-        fprintf(fidDataOut,'%0.4f,%0.2f,%s,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%+0.2f,%+0.2f,%+0.2f,%+0.4f,%s\n', timestamp, unixtimestamp, char(BASE_TOOL_CHAR+toolNum), q(1), q(2), q(3), q(4), t(1), t(2), t(3), err, captureNoteString);
-    else
-        disp(['Tool ' char(BASE_TOOL_CHAR+toolNum) ' unexpected transform result: ' thisTransformStr]);
-    end
-end
+polarisCaptureData(hObject, eventdata, handles);
 
 % reset GUI controls
-set(handles.capturenote,'Enable','on');
+if(get(handles.rbtrack,'Value') == 1)
+    set(handles.capturenote,'Enable','on');
+end
 set(handles.startcap,'Enable','on');
 set(handles.singlecap,'Enable','on');
 set(handles.disconnectbutton,'Enable','on');
@@ -693,16 +641,31 @@ set(handles.startcap,'Enable','off');
 set(handles.singlecap,'Enable','off');
 set(handles.stopcap,'Enable','on');
 set(handles.disconnectbutton,'Enable','off');
+drawnow;
 
-
-
+setappdata(handles.mainpanel,'endTrackingFlag',0);
+while(getappdata(handles.mainpanel,'endTrackingFlag') == 0)
+    polarisCaptureData(hObject, eventdata, handles);
+    drawnow; % this is key! needs to be here for interruption from stop button to work...
+end
+setappdata(handles.mainpanel,'endTrackingFlag',0);
 
 % --- Executes on button press in stopcap.
 function stopcap_Callback(hObject, eventdata, handles)
 % hObject    handle to stopcap (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-set(handles.capturenote,'Enable','on');
+
+setappdata(handles.mainpanel,'endTrackingFlag',1);
+
+while(getappdata(handles.mainpanel,'endTrackigFlag'))
+    % wait until collection actually stops
+end 
+
+% reset GUI
+if(get(handles.rbtrack,'Value') == 1)
+    set(handles.capturenote,'Enable','on');
+end
 set(handles.stopcap,'Enable','off');
 set(handles.singlecap,'Enable','on');
 set(handles.startcap,'Enable','on');
@@ -963,4 +926,99 @@ respStr = strtrim(resp(1:end-4));
 if(~strcmp(respCRC,polarisCRC16(0,respStr)))
     fclose(comPortHandle);
     error('CRC Mismatch');
+end
+
+function polarisCaptureData(hObject, eventdata, handles)
+fidSerial        = getappdata(handles.mainpanel,'fidSerial');
+fidDataOut       = getappdata(handles.mainpanel,'fidDataOut');
+gx_cmd_str       = getappdata(handles.mainpanel,'gx_cmd_str');
+gx_transform_map = getappdata(handles.mainpanel,'gx_transform_map');
+toolsUsed        = getappdata(handles.mainpanel,'toolsUsed');
+BASE_TOOL_CHAR   = getappdata(handles.mainpanel,'BASE_TOOL_CHAR');
+
+% keep track of whether data acquired, and repeat until it is or we hit a
+% timeout
+dataValidFlag = 0;
+numRetries = 0;
+
+while( ~dataValidFlag && numRetries < 10)
+    numRetries = numRetries +1;
+    
+    % query tool positions
+    polarisSendCommand(fidSerial, gx_cmd_str);
+    thisResp = polarisGetResponse(fidSerial);
+    disp(['< ' thisResp]);
+    
+    % handle tracking mode
+    if( get(handles.rbtrack,'Value') && ~get(handles.rbid,'Value'))
+        
+        % get the capture note, and remove any commas
+        captureNoteString = get(handles.capturenote,'String');
+        captureNoteString(regexp(captureNoteString,','))=[];
+        
+        % get a unix timestamp for sanity check and future use (may want the actual DATE)
+        unixtimestamp = posixtime(datetime('now')); % recover with datetime(unixtimestamp,'ConvertFrom','posixtime')
+        
+        % extract quaternion, position, timestamp, and estimated error for each tool
+        respParts = strsplit(thisResp,char(10));
+        thisStatusStr = respParts{end};
+        
+        for toolIdx = 1:length(toolsUsed)
+            toolNum = toolsUsed(toolIdx);
+            thisTransformStr = respParts{ gx_transform_map(toolNum) };
+            if(length(thisTransformStr) == 51)
+                q = zeros(4,1);
+                t = zeros(3,1);
+                
+                % extract rotational component (quaternion)
+                for qIdx = 1:4
+                    startIdx = (qIdx-1)*6 + 1;
+                    q(qIdx) = str2num(thisTransformStr(startIdx:startIdx+5))/10000;
+                end
+                
+                % extract translational component
+                for tIdx = 1:3
+                    startIdx = (tIdx-1)*7 + 25;
+                    t(tIdx) = str2num(thisTransformStr(startIdx:startIdx+6))/100;
+                end
+                
+                % extract error
+                err = str2num(thisTransformStr(46:end))/10000;
+                
+                % extract timestamp
+                startIdx = (toolNum-1)*8+1;
+                timestamp = hex2dec(thisStatusStr(startIdx:startIdx+7))/60;
+                
+                % display tool tracking information
+                fprintf('%0.4f,%0.2f,%s,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%+0.2f,%+0.2f,%+0.2f,%+0.4f,%s\n', timestamp, unixtimestamp, char(BASE_TOOL_CHAR+toolNum), q(1), q(2), q(3), q(4), t(1), t(2), t(3), err, captureNoteString);
+                fprintf(fidDataOut,'%0.4f,%0.2f,%s,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%+0.2f,%+0.2f,%+0.2f,%+0.4f,%s\n', timestamp, unixtimestamp, char(BASE_TOOL_CHAR+toolNum), q(1), q(2), q(3), q(4), t(1), t(2), t(3), err, captureNoteString);
+                
+                % flag this as valid data
+                dataValidFlag = 1;
+            else
+                % TODO: MAKE THIS MORE ROBUST, FAILS IF transform result is 'MISSING'
+                warning(['Tool ' char(BASE_TOOL_CHAR+toolNum) ' unexpected transform result: ' thisTransformStr]);
+            end
+        end
+    elseif( ~get(handles.rbtrack,'Value') && get(handles.rbid,'Value'))
+        % handle tool identification mode
+        [match,tok] = regexp(thisResp,'([+-]+[0-9]+)','match','tokens');
+        
+        % determine how many markers we should see
+        numMarkersList = get(handles.nummarkers,'String');
+        numMarkers = str2num(numMarkersList{get(handles.nummarkers,'Value')});
+        
+        if(length(tok) == (3*numMarkers+1) )
+            tokMat = cellfun(@str2num,[tok{2:end}])/100;
+            outFormatStr = repmat('%+0.4f,',1,length(tokMat));
+            outFormatStr = [outFormatStr(1:end-1) '\n'];
+            fprintf(fidDataOut,outFormatStr,tokMat);
+            
+            % flag this as valid data
+            dataValidFlag = 1;
+        end
+    end
+end
+if(~dataValidFlag)
+    msgbox('Error: could not capture any data!');
 end
