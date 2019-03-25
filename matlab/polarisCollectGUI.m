@@ -410,8 +410,9 @@ if(~connectError)
     elseif(isfile(outputFilePath))
         % desired output file is specified and it already exists
         % if it exists already, we need to add a number
-        [mat,tok] = regexp(outputFilePath,'(?:^|\\)(\w+?)([0-9])*(\.\w+)$','match','tokens');
+        [mat,tok] = regexp(outputFilePath,'(?:^|\\)(\w+?)([0-9])*(\.\w+)?$','match','tokens');
         if(isempty(tok) || ~prod( size(tok{1}) == [1 3]) )
+            tok{1}
             error('Selected filename could not be parsed.');
         end
         newFileIdx = str2num(tok{1}{2})+1;  % don't use str2double here b/c gives NaN rather than [] for null input...
@@ -621,7 +622,14 @@ set(handles.startcap,'Enable','off');
 set(handles.singlecap,'Enable','off');
 set(handles.disconnectbutton,'Enable','off');
 
+% capture a single datapoint
 polarisCaptureData(hObject, eventdata, handles);
+
+% beep on success
+% TODO: add control to disable beep on main GUI panel (for OR)
+fidSerial = getappdata(handles.mainpanel,'fidSerial');
+polarisSendCommand(fidSerial, 'BEEP:1',1);
+disp(['< ' polarisGetResponse(fidSerial)]);
 
 % reset GUI controls
 if(get(handles.rbtrack,'Value') == 1)
