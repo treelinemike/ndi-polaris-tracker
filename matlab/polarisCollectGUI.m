@@ -22,7 +22,7 @@ function varargout = polarisCollectGUI(varargin)
 
 % Edit the above text to modify the response to help polarisCollectGUI
 
-% Last Modified by GUIDE v2.5 27-Mar-2019 09:15:12
+% Last Modified by GUIDE v2.5 27-Mar-2019 13:43:10
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -107,6 +107,55 @@ set(handles.status_f,'BackgroundColor',notLoadColor);
 set(handles.status_g,'BackgroundColor',notLoadColor);
 set(handles.status_h,'BackgroundColor',notLoadColor);
 set(handles.status_i,'BackgroundColor',notLoadColor);
+
+% set tool status indicator
+% status codes:
+%  0 -> tracking, no errors
+%  1 -> partially out of volume
+%  2 -> out of volume
+%  3 -> not enough markers
+%  4 -> tool not loaded
+function setToolStatusIndicator(toolIdx,statusCode)
+
+% determine what color to set indicator
+switch(statusCode)
+    case 0
+        indicatorColor = get(handles.label_track,'BackgroundColor');
+    case 1
+        indicatorColor = get(handles.label_poov,'BackgroundColor');
+    case 2
+        indicatorColor = get(handles.label_oov,'BackgroundColor');
+    case 3
+        indicatorColor = get(handles.label_toofew,'BackgroundColor');
+    case 4
+        indicatorColor = get(handles.label_notload,'BackgroundColor');
+    otherwise
+        error('Unrecognized status code!');
+end
+
+% set indicator to correct color
+switch(toolIdx)
+    case 1
+        set(handles.status_a,'BackgroundColor',indicatorColor);
+    case 2
+        set(handles.status_b,'BackgroundColor',indicatorColor);
+    case 3
+        set(handles.status_c,'BackgroundColor',indicatorColor);
+    case 4
+        set(handles.status_d,'BackgroundColor',indicatorColor);
+    case 5
+        set(handles.status_e,'BackgroundColor',indicatorColor);
+    case 6
+        set(handles.status_f,'BackgroundColor',indicatorColor);
+    case 7
+        set(handles.status_g,'BackgroundColor',indicatorColor);
+    case 8
+        set(handles.status_h,'BackgroundColor',indicatorColor);
+    case 9
+        set(handles.status_i,'BackgroundColor',indicatorColor);
+    otherwise
+        error('Invalid tool index!');
+end
 
 % disable controls for changing output file
 function disableOutputFileChange(hObject, eventdata, handles)
@@ -986,11 +1035,18 @@ while( ~dataValidFlag && numRetries < 10)
         
         % extract quaternion, position, timestamp, and estimated error for each tool
         respParts = strsplit(thisResp,char(10));
-        thisStatusStr = respParts{end};
+        thisFrameNumStr = respParts{end};
         
         for toolIdx = 1:length(toolsUsed)
+            
+            % get the tool index
             toolNum = toolsUsed(toolIdx);
-            thisTransformStr = respParts{ gx_transform_map(toolNum) };
+            
+            % figure out which line the transform data is on
+            dataLine = gx_transform_map(toolNum);
+            
+            % get the transform data
+            thisTransformStr = respParts{ dataLine };
             if(length(thisTransformStr) == 51)
                 q = zeros(4,1);
                 t = zeros(3,1);
@@ -1012,7 +1068,7 @@ while( ~dataValidFlag && numRetries < 10)
                 
                 % extract timestamp
                 startIdx = (toolNum-1)*8+1;
-                timestamp = hex2dec(thisStatusStr(startIdx:startIdx+7))/60;
+                timestamp = hex2dec(thisFrameNumStr(startIdx:startIdx+7))/60;
                 
                 % display tool tracking information
                 fprintf('%0.4f,%0.2f,%s,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%+0.2f,%+0.2f,%+0.2f,%+0.4f,%s\n', timestamp, unixtimestamp, char(BASE_TOOL_CHAR+toolNum), q(1), q(2), q(3), q(4), t(1), t(2), t(3), err, captureNoteString);
@@ -1024,6 +1080,35 @@ while( ~dataValidFlag && numRetries < 10)
                 % TODO: MAKE THIS MORE ROBUST, FAILS IF transform result is 'MISSING'
                 warning(['Tool ' char(BASE_TOOL_CHAR+toolNum) ' unexpected transform result: ' thisTransformStr]);
             end
+            
+            % get the volume status (in, partially out, out)
+            volStatusLine = dataLine + (4-mod(dataLine-1,4));
+            thisVolStatusStr = respParts{ volStatusLine };
+            volStatusCode = thisVolStatusStr((9-2*(mod(x-1,4))));
+            
+            % set the status indicator on the GUI appropriately
+            if( strcmp(volStatusCode,'7') )
+                % out of volume
+                setToolStatusIndicator(toolIdx,2);
+            elseif( strcmp(volStatusCode,'B') )
+                % partially out of volume
+                setToolStatusIndicator(toolIdx,1);
+            elseif( strcmp(volStatusCode,'3') )
+                % potentially in volume
+                % need to make sure the "too few markers" flag isn't set
+                
+                thisMarkerStatusStr = respParts{ end-1 };
+                if(strcmp(thisMarkerStatusStr(10+12*(toolIdx-1)),'2'))
+                   % too few markers 
+                   setToolStatusIndicator(toolIdx,3);
+                else
+                    % tracking OK, turn indicator green
+                    setToolStatusIndicator(toolIdx,0);
+                end 
+            else
+               warning('Unsupported tool status code'); 
+            end
+            
         end
     elseif( ~get(handles.rbtrack,'Value') && get(handles.rbid,'Value'))
         % handle tool identification mode
@@ -1133,9 +1218,9 @@ function label_oov_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 
-% --- Executes on button press in pushbutton26.
-function pushbutton26_Callback(hObject, eventdata, handles)
-% hObject    handle to pushbutton26 (see GCBO)
+% --- Executes on button press in status_toofew.
+function status_toofew_Callback(hObject, eventdata, handles)
+% hObject    handle to status_toofew (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
