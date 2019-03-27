@@ -22,7 +22,7 @@ function varargout = polarisCollectGUI(varargin)
 
 % Edit the above text to modify the response to help polarisCollectGUI
 
-% Last Modified by GUIDE v2.5 27-Mar-2019 13:43:10
+% Last Modified by GUIDE v2.5 27-Mar-2019 14:20:28
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -115,7 +115,7 @@ set(handles.status_i,'BackgroundColor',notLoadColor);
 %  2 -> out of volume
 %  3 -> not enough markers
 %  4 -> tool not loaded
-function setToolStatusIndicator(toolIdx,statusCode)
+function setToolStatusIndicator(toolIdx,statusCode,handles)
 
 % determine what color to set indicator
 switch(statusCode)
@@ -510,20 +510,7 @@ if(~connectError)
     set(handles.startcap,'Enable','on');
     if(get(handles.rbtrack,'Value') == 1)
         set(handles.capturenote,'Enable','on');
-    end
-    
-    thisColor = get(handles.label_track,'BackgroundColor');
-    set(handles.status_a,'BackgroundColor',thisColor);
-    % TEST CODE... THIS NEEDS TO BE REMOVED
-    % msgbox(handles.comport.String{handles.comport.Value});
-    % set(handles.connectbutton,'String','Disconnect');
-%     for i = 1:10
-%         handles.statusbox.String = [handles.statusbox.String;{num2str(i)}];
-%         handles.statusbox.Value = length(handles.statusbox.String);
-%         drawnow;
-%         pause(0.1);
-%     end
-    
+    end  
 else
     disconnectUIChange(hObject, eventdata, handles);
 end
@@ -689,7 +676,10 @@ set(handles.singlecap,'Enable','off');
 set(handles.disconnectbutton,'Enable','off');
 
 % capture a single datapoint
-polarisCaptureData(hObject, eventdata, handles);
+captureStatus = polarisCaptureData(hObject, eventdata, handles);
+if(captureStatus)
+    msgbox('Error: could not capture any data!');
+end
 
 % beep on success
 % TODO: add control to disable beep on main GUI panel (for OR)
@@ -1002,7 +992,7 @@ if(~strcmp(respCRC,polarisCRC16(0,respStr)))
     error('CRC Mismatch');
 end
 
-function polarisCaptureData(hObject, eventdata, handles)
+function captureStatus = polarisCaptureData(hObject, eventdata, handles)
 fidSerial        = getappdata(handles.mainpanel,'fidSerial');
 fidDataOut       = getappdata(handles.mainpanel,'fidDataOut');
 gx_cmd_str       = getappdata(handles.mainpanel,'gx_cmd_str');
@@ -1084,29 +1074,30 @@ while( ~dataValidFlag && numRetries < 10)
             % get the volume status (in, partially out, out)
             volStatusLine = dataLine + (4-mod(dataLine-1,4));
             thisVolStatusStr = respParts{ volStatusLine };
-            volStatusCode = thisVolStatusStr((9-2*(mod(x-1,4))));
+            volStatusCode = thisVolStatusStr((9-2*((mod(toolNum-1,3)+1))));
             
             % set the status indicator on the GUI appropriately
             if( strcmp(volStatusCode,'7') )
                 % out of volume
-                setToolStatusIndicator(toolIdx,2);
+                setToolStatusIndicator(toolNum,2,handles);
             elseif( strcmp(volStatusCode,'B') )
                 % partially out of volume
-                setToolStatusIndicator(toolIdx,1);
+                setToolStatusIndicator(toolNum,1,handles);
             elseif( strcmp(volStatusCode,'3') )
                 % potentially in volume
                 % need to make sure the "too few markers" flag isn't set
                 
                 thisMarkerStatusStr = respParts{ end-1 };
-                if(strcmp(thisMarkerStatusStr(10+12*(toolIdx-1)),'2'))
+                if(strcmp(thisMarkerStatusStr(10+12*(toolNum-1)),'2'))
                    % too few markers 
-                   setToolStatusIndicator(toolIdx,3);
+                   setToolStatusIndicator(toolNum,3,handles);
                 else
                     % tracking OK, turn indicator green
-                    setToolStatusIndicator(toolIdx,0);
+                    setToolStatusIndicator(toolNum,0,handles);
                 end 
             else
-               warning('Unsupported tool status code'); 
+               warning(['Unsupported tool status code: ' volStatusCode]); 
+               warning(thisVolStatusStr);
             end
             
         end
@@ -1129,8 +1120,11 @@ while( ~dataValidFlag && numRetries < 10)
         end
     end
 end
+
 if(~dataValidFlag)
-    msgbox('Error: could not capture any data!');
+    captureStatus = -1;
+else
+    captureStatus = 0;
 end
 
 
@@ -1218,9 +1212,9 @@ function label_oov_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 
-% --- Executes on button press in status_toofew.
-function status_toofew_Callback(hObject, eventdata, handles)
-% hObject    handle to status_toofew (see GCBO)
+% --- Executes on button press in label_toofew.
+function label_toofew_Callback(hObject, eventdata, handles)
+% hObject    handle to label_toofew (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
