@@ -22,7 +22,7 @@ function varargout = polarisCollectGUI(varargin)
 
 % Edit the above text to modify the response to help polarisCollectGUI
 
-% Last Modified by GUIDE v2.5 15-Mar-2019 11:07:22
+% Last Modified by GUIDE v2.5 27-Mar-2019 09:15:12
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -1030,3 +1030,101 @@ end
 if(~dataValidFlag)
     msgbox('Error: could not capture any data!');
 end
+
+
+% --- Executes on button press in status_a.
+function status_a_Callback(hObject, eventdata, handles)
+% hObject    handle to status_a (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+
+% --- Executes on button press in status_b.
+function status_b_Callback(hObject, eventdata, handles)
+% hObject    handle to status_b (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+
+% --- Executes on button press in status_c.
+function status_c_Callback(hObject, eventdata, handles)
+% hObject    handle to status_c (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+
+% --- Executes on button press in status_d.
+function status_d_Callback(hObject, eventdata, handles)
+% hObject    handle to status_d (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+
+% --- Executes on button press in status_e.
+function status_e_Callback(hObject, eventdata, handles)
+% hObject    handle to status_e (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+
+% --- Executes on button press in status_f.
+function status_f_Callback(hObject, eventdata, handles)
+% hObject    handle to status_f (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+
+% --- Executes on button press in status_g.
+function status_g_Callback(hObject, eventdata, handles)
+% hObject    handle to status_g (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+
+% --- Executes on button press in status_h.
+function status_h_Callback(hObject, eventdata, handles)
+% hObject    handle to status_h (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+
+% --- Executes on button press in status_i.
+function status_i_Callback(hObject, eventdata, handles)
+% hObject    handle to status_i (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+
+% --- Executes on button press in label_track.
+function label_track_Callback(hObject, eventdata, handles)
+% hObject    handle to label_track (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+
+% --- Executes on button press in label_poov.
+function label_poov_Callback(hObject, eventdata, handles)
+% hObject    handle to label_poov (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+
+% --- Executes on button press in label_oov.
+function label_oov_Callback(hObject, eventdata, handles)
+% hObject    handle to label_oov (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+
+% --- Executes on button press in pushbutton26.
+function pushbutton26_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton26 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+
+% --- Executes on button press in label_notload.
+function label_notload_Callback(hObject, eventdata, handles)
+% hObject    handle to label_notload (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
