@@ -86,6 +86,7 @@ set(handles.stopcap,'Enable','off');
 set(handles.singlecap,'Enable','off');
 set(handles.capturenote,'Enable','off');
 set(handles.nummarkers,'Enable','off');
+resetToolStatusIndicators(hObject, eventdata, handles);
 
 % tip calibration not implemented yet...
 set(handles.tipcalbutton,'Enable','off');
@@ -93,6 +94,19 @@ set(handles.tipcalclearbutton,'Enable','off');
 
 % UIWAIT makes polarisCollectGUI wait for user response (see UIRESUME)
 % uiwait(handles.mainpanel);
+
+% reset tool status "lights"
+function resetToolStatusIndicators(hObject, eventdata, handles)
+notLoadColor = get(handles.label_notload,'BackgroundColor');
+set(handles.status_a,'BackgroundColor',notLoadColor);
+set(handles.status_b,'BackgroundColor',notLoadColor);
+set(handles.status_c,'BackgroundColor',notLoadColor);
+set(handles.status_d,'BackgroundColor',notLoadColor);
+set(handles.status_e,'BackgroundColor',notLoadColor);
+set(handles.status_f,'BackgroundColor',notLoadColor);
+set(handles.status_g,'BackgroundColor',notLoadColor);
+set(handles.status_h,'BackgroundColor',notLoadColor);
+set(handles.status_i,'BackgroundColor',notLoadColor);
 
 % disable controls for changing output file
 function disableOutputFileChange(hObject, eventdata, handles)
@@ -449,15 +463,17 @@ if(~connectError)
         set(handles.capturenote,'Enable','on');
     end
     
+    thisColor = get(handles.label_track,'BackgroundColor');
+    set(handles.status_a,'BackgroundColor',thisColor);
     % TEST CODE... THIS NEEDS TO BE REMOVED
     % msgbox(handles.comport.String{handles.comport.Value});
     % set(handles.connectbutton,'String','Disconnect');
-    for i = 1:10
-        handles.statusbox.String = [handles.statusbox.String;{num2str(i)}];
-        handles.statusbox.Value = length(handles.statusbox.String);
-        drawnow;
-        pause(0.1);
-    end
+%     for i = 1:10
+%         handles.statusbox.String = [handles.statusbox.String;{num2str(i)}];
+%         handles.statusbox.Value = length(handles.statusbox.String);
+%         drawnow;
+%         pause(0.1);
+%     end
     
 else
     disconnectUIChange(hObject, eventdata, handles);
@@ -476,6 +492,7 @@ set(handles.startcap,'Enable','off');
 set(handles.capturenote,'Enable','off');
 set(handles.rbtrack,'Enable','on');
 set(handles.rbid,'Enable','on');
+resetToolStatusIndicators(hObject, eventdata, handles);
 
 % --- Executes on button press in disconnectbutton.
 function disconnectbutton_Callback(hObject, eventdata, handles)
