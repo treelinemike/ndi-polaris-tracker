@@ -76,6 +76,7 @@ setappdata(handles.mainpanel,'BASE_TOOL_CHAR',64);
 setappdata(handles.mainpanel,'toolsUsed',[]);
 setappdata(handles.mainpanel,'gx_transform_map',[6 7 8 10 11 12 14 15 16]);
 setappdata(handles.mainpanel,'endTrackingFlag',0);
+setappdata(handles.mainpanel,'DEBUG_MODE',0);   % SET DEBUG MODE HERE, 0 surpresses display output for faster data rate %
 
 % configure various UI components
 updateOutputFilePath(hObject, eventdata, handles);
@@ -316,7 +317,9 @@ if(~connectError)
     comPortValues = get(handles.comport,'String');
     SERIAL_COM_PORT = comPortValues{get(handles.comport,'Value')};
     if(strcmp(SERIAL_COM_PORT,'Auto'))
-        disp('Attempting to identify correct COM port...');
+        if(getappdata(handles.mainpanel,'DEBUG_MODE'))
+            disp('Attempting to identify correct COM port...');
+        end
         [~,res]=system('chgport');
         [mat,tok] = regexp(res, '([A-Z0-9]+)[\s=]+([\\A-Za-z]+)[0-9]+','match','tokens');
         comMatches = {};
@@ -330,7 +333,9 @@ if(~connectError)
                 waitfor(msgbox('COM port not found, set manually!'));
                 connectError = 1;
             case 1
-                disp(['Detected correct adapter on ' comMatches{1}]);
+                if(getappdata(handles.mainpanel,'DEBUG_MODE'))
+                    disp(['Detected correct adapter on ' comMatches{1}]);
+                end
                 SERIAL_COM_PORT = comMatches{1};
             otherwise
                 waitfor(msgbox('Multiple ''ProlificSerial'' devices found, set COM port manually!'));
@@ -356,19 +361,33 @@ if(~connectError)
     % use instrreset() and instrfind() to deal with ghost MATLAB port handles
     serialbreak(fidSerial, 10);
     pause(1);
-    disp(['< ' polarisGetResponse(fidSerial)]);  %TODO: Catch serial timeout errors that occurr if attempting to connect via wrong port
+    if(getappdata(handles.mainpanel,'DEBUG_MODE'))
+        disp(['< ' polarisGetResponse(fidSerial)]);  %TODO: Catch serial timeout errors that occurr if attempting to connect via wrong port
+    else
+        polarisGetResponse(fidSerial);
+    end
     
     % produce audible beep as confirmation
-    polarisSendCommand(fidSerial, 'BEEP:1',1);
-    disp(['< ' polarisGetResponse(fidSerial)]);
+    polarisSendCommand(handles,fidSerial, 'BEEP:1',1);
+    if(getappdata(handles.mainpanel,'DEBUG_MODE'))
+        disp(['< ' polarisGetResponse(fidSerial)]);
+    else
+        polarisGetResponse(fidSerial);
+    end
     
     % change communication to 57,600 baud
-    polarisSendCommand(fidSerial, 'COMM:40000',1);
-    disp(['< ' polarisGetResponse(fidSerial)]);
+    polarisSendCommand(handles,fidSerial, 'COMM:40000',1);
+    if(getappdata(handles.mainpanel,'DEBUG_MODE'))
+        disp(['< ' polarisGetResponse(fidSerial)]);
+    else
+        polarisGetResponse(fidSerial);
+    end
     
     % swich MATLAB COM port settings to 57,600 baud
     fclose(fidSerial);
-    disp('SWITCHING PC TO 57,000 BAUD');
+    if(getappdata(handles.mainpanel,'DEBUG_MODE'))
+        disp('SWITCHING PC TO 57,000 BAUD');
+    end
     pause(0.5);
     fidSerial = serial(SERIAL_COM_PORT,'BaudRate',57600,'Timeout',SERIAL_TIMEOUT,'Terminator',SERIAL_TERMINATOR);
     warning off MATLAB:serial:fread:unsuccessfulRead;
@@ -376,23 +395,39 @@ if(~connectError)
     setappdata(handles.mainpanel,'fidSerial',fidSerial);
     
     % produce audible beeps as confimation
-    polarisSendCommand(fidSerial, 'BEEP:2',1);
-    disp(['< ' polarisGetResponse(fidSerial)]);
+    polarisSendCommand(handles,fidSerial, 'BEEP:2',1);
+    if(getappdata(handles.mainpanel,'DEBUG_MODE'))
+        disp(['< ' polarisGetResponse(fidSerial)]);
+    else
+        polarisGetResponse(fidSerial);
+    end
 end
 
 % general Polaris initialization
 if(~connectError)
     % initialize system
-    polarisSendCommand(fidSerial, 'INIT:',1);
-    disp(['< ' polarisGetResponse(fidSerial)]);
+    polarisSendCommand(handles,fidSerial, 'INIT:',1);
+    if(getappdata(handles.mainpanel,'DEBUG_MODE'))
+        disp(['< ' polarisGetResponse(fidSerial)]);
+    else
+        polarisGetResponse(fidSerial);
+    end
     
     % select volume (doing this blindly without querying volumes first)
-    polarisSendCommand(fidSerial, 'VSEL:1',1);
-    disp(['< ' polarisGetResponse(fidSerial)]);
+    polarisSendCommand(handles,fidSerial, 'VSEL:1',1);
+    if(getappdata(handles.mainpanel,'DEBUG_MODE'))
+        disp(['< ' polarisGetResponse(fidSerial)]);
+    else
+        polarisGetResponse(fidSerial);
+    end
     
     % set illuminator rate to 20Hz
-    polarisSendCommand(fidSerial, 'IRATE:0',1);
-    disp(['< ' polarisGetResponse(fidSerial)]);
+    polarisSendCommand(handles,fidSerial, 'IRATE:0',1);
+    if(getappdata(handles.mainpanel,'DEBUG_MODE'))
+        disp(['< ' polarisGetResponse(fidSerial)]);
+    else
+        polarisGetResponse(fidSerial);
+    end
 end
 
 % send tool definition files to Polaris
@@ -407,15 +442,22 @@ if(~connectError)
             fclose(fidSerial);
             error('Invalid tool file and/or path.');
         end
-        disp(['INITIALIZING PORT ' char(BASE_TOOL_CHAR+toolNum) ' WITH TOOL FILE: ' thisToolFile(max(strfind(thisToolFile,'\'))+1:end)]);
+        
+        if(getappdata(handles.mainpanel,'DEBUG_MODE'))
+            disp(['INITIALIZING PORT ' char(BASE_TOOL_CHAR+toolNum) ' WITH TOOL FILE: ' thisToolFile(max(strfind(thisToolFile,'\'))+1:end)]);
+        end
         
         % read 64-byte clumps from binary file
         [readBytes, numBytes] = fread(toolFileID,64);
         bytePos = 0;
         while (numBytes == 64)
             str = ['PVWR:' char(BASE_TOOL_CHAR+toolNum) dec2hex(bytePos,4) reshape(dec2hex(readBytes,2)',1,[])];
-            polarisSendCommand(fidSerial,str,1);
-            disp(['< ' polarisGetResponse(fidSerial)]);
+            polarisSendCommand(handles,fidSerial,str,1);
+            if(getappdata(handles.mainpanel,'DEBUG_MODE'))
+                disp(['< ' polarisGetResponse(fidSerial)]);
+            else
+                polarisGetResponse(fidSerial);
+            end
             [readBytes, numBytes] = fread(toolFileID,64);
             bytePos = bytePos + 64;
         end
@@ -423,31 +465,51 @@ if(~connectError)
         % read any remaining bytes, padding with FF
         if(numBytes > 0)
             str = ['PVWR:' char(BASE_TOOL_CHAR+toolNum) dec2hex(bytePos,4) reshape(dec2hex(readBytes,2)',1,[]) repmat('FF',1,64-numBytes)];
-            polarisSendCommand(fidSerial,str,1);
-            disp(['< ' polarisGetResponse(fidSerial)]);
+            polarisSendCommand(handles,fidSerial,str,1);
+            if(getappdata(handles.mainpanel,'DEBUG_MODE'))
+                disp(['< ' polarisGetResponse(fidSerial)]);
+            else
+                polarisGetResponse(fidSerial);
+            end
         end
         
         % close binary tool file
         fclose(toolFileID);
         
         % initialize port handle for the tool
-        polarisSendCommand(fidSerial, ['PINIT:' char(BASE_TOOL_CHAR+toolNum)],1);
-        disp(['< ' polarisGetResponse(fidSerial)]);
+        polarisSendCommand(handles,fidSerial, ['PINIT:' char(BASE_TOOL_CHAR+toolNum)],1);
+        if(getappdata(handles.mainpanel,'DEBUG_MODE'))
+            disp(['< ' polarisGetResponse(fidSerial)]);
+        else
+            polarisGetResponse(fidSerial);
+        end
         
         % enable tracking for the tool
-        polarisSendCommand(fidSerial, ['PENA:' char(BASE_TOOL_CHAR+toolNum) toolDefFiles{toolNum,2}],1);
-        disp(['< ' polarisGetResponse(fidSerial)]);
+        polarisSendCommand(handles,fidSerial, ['PENA:' char(BASE_TOOL_CHAR+toolNum) toolDefFiles{toolNum,2}],1);
+        if(getappdata(handles.mainpanel,'DEBUG_MODE'))
+            disp(['< ' polarisGetResponse(fidSerial)]);
+        else
+            polarisGetResponse(fidSerial);
+        end
     end
     
     % confirm tool configuration
-    polarisSendCommand(fidSerial, pstat_cmd_str,1);
-    disp(['< ' polarisGetResponse(fidSerial)]);
+    polarisSendCommand(handles,fidSerial, pstat_cmd_str,1);
+    if(getappdata(handles.mainpanel,'DEBUG_MODE'))
+        disp(['< ' polarisGetResponse(fidSerial)]);
+    else
+        polarisGetResponse(fidSerial);
+    end
 end
 
 % enter tracking mode
 if(~connectError)
-    polarisSendCommand(fidSerial, 'TSTART:',1);
-    disp(['< ' polarisGetResponse(fidSerial)]);
+    polarisSendCommand(handles,fidSerial, 'TSTART:',1);
+    if(getappdata(handles.mainpanel,'DEBUG_MODE'))
+        disp(['< ' polarisGetResponse(fidSerial)]);
+    else
+        polarisGetResponse(fidSerial);
+    end
 end
 
 % load output file
@@ -510,7 +572,7 @@ if(~connectError)
     set(handles.startcap,'Enable','on');
     if(get(handles.rbtrack,'Value') == 1)
         set(handles.capturenote,'Enable','on');
-    end  
+    end
 else
     disconnectUIChange(hObject, eventdata, handles);
 end
@@ -544,8 +606,12 @@ fidDataOut = getappdata(handles.mainpanel,'fidDataOut');
 fclose(fidDataOut);
 
 % end tracking
-polarisSendCommand(fidSerial, 'TSTOP:',1);
-disp(['< ' polarisGetResponse(fidSerial)]);
+polarisSendCommand(handles,fidSerial, 'TSTOP:',1);
+if(getappdata(handles.mainpanel,'DEBUG_MODE'))
+    disp(['< ' polarisGetResponse(fidSerial)]);
+else
+    polarisGetResponse(fidSerial);
+end
 
 % close communication
 fclose(fidSerial);
@@ -599,7 +665,7 @@ if(ischar(file))
     elseif(~staticVal && dynamicVal)
         toolDefFiles{toolIdx,2} = 'D';
     else
-        disp('Invalid combination of radio button values!');
+        warning('Invalid combination of radio button values!');
     end
     
     setappdata(handles.mainpanel,'toolDefFiles',toolDefFiles);
@@ -684,8 +750,12 @@ end
 % beep on success
 % TODO: add control to disable beep on main GUI panel (for OR)
 fidSerial = getappdata(handles.mainpanel,'fidSerial');
-polarisSendCommand(fidSerial, 'BEEP:1',1);
-disp(['< ' polarisGetResponse(fidSerial)]);
+polarisSendCommand(handles,fidSerial, 'BEEP:1',1);
+if(getappdata(handles.mainpanel,'DEBUG_MODE'))
+    disp(['< ' polarisGetResponse(fidSerial)]);
+else
+    polarisGetResponse(fidSerial);
+end
 
 % reset GUI controls
 if(get(handles.rbtrack,'Value') == 1)
@@ -724,7 +794,7 @@ setappdata(handles.mainpanel,'endTrackingFlag',1);
 
 while(getappdata(handles.mainpanel,'endTrackigFlag'))
     % wait until collection actually stops
-end 
+end
 
 % reset GUI
 if(get(handles.rbtrack,'Value') == 1)
@@ -810,7 +880,7 @@ if(staticVal && ~dynamicVal)
 elseif(~staticVal && dynamicVal)
     toolDefFiles{toolIdx,2} = 'D';
 else
-    disp('Invalid combination of radio button values!');
+    warning('Invalid combination of radio button values!');
 end
 
 setappdata(handles.mainpanel,'toolDefFiles',toolDefFiles);
@@ -964,13 +1034,15 @@ elseif( ~get(handles.rbtrack,'Value') && get(handles.rbid,'Value'))
 end
 
 % send command to Polaris system
-function polarisSendCommand(comPortHandle, cmdStr, varargin)
+function polarisSendCommand(handles,comPortHandle, cmdStr, varargin)
 
 realStr = [cmdStr polarisCRC16(0,cmdStr)];
 fprintf(comPortHandle,realStr); % note: terminator added automatically (default fprintf format is %s\n
 
-if(nargin > 2 && varargin{1} == 1)
-    disp(['> ' strtrim(cmdStr)]);
+if(nargin > 3 && varargin{1} == 1)
+    if(getappdata(handles.mainpanel,'DEBUG_MODE'))
+        disp(['> ' strtrim(cmdStr)]);
+    end
 end
 
 % read response from Polaris system
@@ -1009,9 +1081,11 @@ while( ~dataValidFlag && numRetries < 10)
     numRetries = numRetries +1;
     
     % query tool positions
-    polarisSendCommand(fidSerial, gx_cmd_str);
+    polarisSendCommand(handles, fidSerial, gx_cmd_str);
     thisResp = polarisGetResponse(fidSerial);
-    disp(['< ' thisResp]);
+    if(getappdata(handles.mainpanel,'DEBUG_MODE'))
+        disp(['< ' thisResp]);
+    end
     
     % handle tracking mode
     if( get(handles.rbtrack,'Value') && ~get(handles.rbid,'Value'))
@@ -1061,14 +1135,16 @@ while( ~dataValidFlag && numRetries < 10)
                 timestamp = hex2dec(thisFrameNumStr(startIdx:startIdx+7))/60;
                 
                 % display tool tracking information
-                fprintf('%0.4f,%0.2f,%s,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%+0.2f,%+0.2f,%+0.2f,%+0.4f,%s\n', timestamp, unixtimestamp, char(BASE_TOOL_CHAR+toolNum), q(1), q(2), q(3), q(4), t(1), t(2), t(3), err, captureNoteString);
+                if(getappdata(handles.mainpanel,'DEBUG_MODE'))
+                    fprintf('%0.4f,%0.2f,%s,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%+0.2f,%+0.2f,%+0.2f,%+0.4f,%s\n', timestamp, unixtimestamp, char(BASE_TOOL_CHAR+toolNum), q(1), q(2), q(3), q(4), t(1), t(2), t(3), err, captureNoteString);
+                end
                 fprintf(fidDataOut,'%0.4f,%0.2f,%s,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%+0.2f,%+0.2f,%+0.2f,%+0.4f,%s\n', timestamp, unixtimestamp, char(BASE_TOOL_CHAR+toolNum), q(1), q(2), q(3), q(4), t(1), t(2), t(3), err, captureNoteString);
                 
                 % flag this as valid data
                 dataValidFlag = 1;
             else
                 % TODO: MAKE THIS MORE ROBUST, FAILS IF transform result is 'MISSING'
-                warning(['Tool ' char(BASE_TOOL_CHAR+toolNum) ' unexpected transform result: ' thisTransformStr]);
+                %warning(['Tool ' char(BASE_TOOL_CHAR+toolNum) ' unexpected transform result: ' thisTransformStr]);
             end
             
             % get the volume status (in, partially out, out)
@@ -1088,16 +1164,17 @@ while( ~dataValidFlag && numRetries < 10)
                 % need to make sure the "too few markers" flag isn't set
                 
                 thisMarkerStatusStr = respParts{ end-1 };
-                if(strcmp(thisMarkerStatusStr(10+12*(toolNum-1)),'2'))
-                   % too few markers 
-                   setToolStatusIndicator(toolNum,3,handles);
+                thisMarkerStatusHexDigit = thisMarkerStatusStr(10+12*(toolNum-1));
+                if(bitand(hex2dec(thisMarkerStatusHexDigit),bin2dec('0010')))
+                    % too few markers
+                    setToolStatusIndicator(toolNum,3,handles);
                 else
                     % tracking OK, turn indicator green
-                    setToolStatusIndicator(toolNum,0,handles);
-                end 
+                    setToolStatusIndicator(toolNum,0,handles);                    
+                end
             else
-               warning(['Unsupported tool status code: ' volStatusCode]); 
-               warning(thisVolStatusStr);
+                warning(['Unsupported tool status code: ' volStatusCode]);
+                %warning(thisVolStatusStr);
             end
             
         end
