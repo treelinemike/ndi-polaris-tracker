@@ -14,6 +14,22 @@ max3DError = 2.000;  % [mm]
 minSpread1 = 0;
 minSpread2 = 0;
 minSpread3 = 0;
+numFaces = 8;
+numGroups = 2;
+trackLED = 31;  % LEDs: 0x1F = None; 0x00 = A; 0x13 = T; 0x1E = Set in GPIO 
+led1 = 31;
+led2 = 31;
+led3 = 31;
+gpio1 = 9;  %GPIOs: 0x09 = Input, 0x10 = Output; 0x30 = Always High; 0x11 = Output w/ Feedback; 0x00 = None
+gpio2 = 0;
+gpio3 = 0;
+gpio4 = 0;
+mfgr = 'Thayer';
+partNum = 'Xi Collar 001';
+enhAlgFlags = 128;
+MrkrType = 41; % Marker Type: 0x11 = 880 Active Ceramic; 0x12 = 930; 0x10 = NDI Legacy; 0x29 = Passive Marker, Sphere; 0x31 = Passive Marker, Disk 
+
+
 
 markerLocs = zeros(20,3);
 markerLocs(1,:) = [13.02 -0.37 0.44];
@@ -49,8 +65,8 @@ datevar = bitor(datevar,bitshift((thisDateVec(2)-1),11));      % month
 datevar = bitor(bitshift((thisDateVec(1) - 1900),15),datevar); % year
 dec2hex(bitshift(swapbytes(uint32(datevar)),-8))               % date bytes for binary file
 
-
-
+% faces and groups
+faceGrpByte = bitor(uint8(bitshift(numFaces,3)),uint8(bitand(numGroups,hex2dec('07'))));
 
 % try to compute checksum...
 addpath('C:\Users\f002r5k\GitHub\ndi-polaris-tracker\matlab');
@@ -82,7 +98,7 @@ writeStr(1:3)     = 'NDI';
 writeStr(9)       = uint8(1);          % not sure what this field is...
 writeStr(13)      = uint8(subType);
 writeStr(16)      = uint8(toolType);
-writeStr(17:18)   = typecast(uint16(999),'uint8'); % TODO: requires little endian system
+writeStr(17:18)   = typecast(uint16(toolRev),'uint8'); % TODO: requires little endian system
 writeStr(21)      = seqNumByte;
 writeStr(22:24)   = getfield(typecast(uint32(datevar),'uint8'),{1:3}); % TODO: requires little endian system
 writeStr(25)      = uint8(maxAngle);
@@ -92,8 +108,37 @@ writeStr(37:40)   = typecast(single(max3DError),'uint8'); % TODO: requires littl
 writeStr(41:44)   = typecast(single(minSpread1),'uint8'); % TODO: requires little endian system
 writeStr(45:48)   = typecast(single(minSpread2),'uint8'); % TODO: requires little endian system
 writeStr(49:52)   = typecast(single(minSpread3),'uint8'); % TODO: requires little endian system
-writeStr(67)      = uint8(hex2dec('20'));
-writeStr(68)      = uint8(hex2dec('41'));
+writeStr(67)      = uint8(hex2dec('20')); % not sure what this field is...
+writeStr(68)      = uint8(hex2dec('41')); % not sure what this field is...
+
+writeStr(573)      = uint8(trackLED);
+writeStr(574)      = uint8(led1);
+writeStr(575)      = uint8(led2);
+writeStr(576)      = uint8(led3);
+writeStr(577)      = uint8(gpio1);
+writeStr(578)      = uint8(gpio2);
+writeStr(579)      = uint8(gpio3);
+writeStr(580)      = uint8(gpio4);
+writeStr(613)      = uint8(faceGrpByte);
+writeStr(654)      = uint8(enhAlgFlags);
+writeStr(656)      = uint8(MrkrType);
+
+% manufacturer
+if(length(mfgr) > 12)
+    mfgr = mfgr(1:12);
+else
+    mfgr = [mfgr zeros(1,12-length(mfgr))];
+end
+writeStr(580+(1:12)) = mfgr;
+
+% part number
+if(length(partNum) > 20)
+    partNum = partNum(1:20);
+else
+    partNum = [partNum zeros(1,20-length(partNum))];
+end
+writeStr(592+(1:20)) = partNum;
+
 % marker locations
 for markerIdx = 1:size(markerLocs,1)
    baseByteIdx = 73+12*(markerIdx-1);
@@ -116,6 +161,11 @@ for faceIdx = 1:size(faceNormals,1)
    writeStr(baseByteIdx + 0 + [0:3]) = typecast(single(faceNormals(faceIdx,1)),'uint8'); % x location
    writeStr(baseByteIdx + 4 + [0:3]) = typecast(single(faceNormals(faceIdx,2)),'uint8'); % y location
    writeStr(baseByteIdx + 8 + [0:3]) = typecast(single(faceNormals(faceIdx,3)),'uint8'); % z location
+end
+
+% firing sequence
+for markerIdx = 1:numMarkers
+    writeStr(markerIdx + 552) = markerIdx-1;
 end
 
 fidOut = fopen(romFileName,'w');
