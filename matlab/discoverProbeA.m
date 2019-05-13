@@ -3,23 +3,36 @@ close all; clear all; clc;
 
 % options
 doShowAllPlots = 0;
-doCompareToGroundTruth = 0;
+romFileName = 'toolDefTest.rom';
+mfgrString = 'Thayer';
+partNumString = 'Xi Collar 001';
 
 % load data
-% allData = load('medtronic_data_1_identify.csv');
-allData = load('trial003.csv');
+allData = load('medtronic_data_1_identify.csv');
+
+% data storage
 allRelDist = [];
 allRelXYZ = [];
 
+% look at each row (individual observation) separately
 for rowIdx = 1:size(allData,1)
+    
+    % data comes in as (xpos,ypos,zpos) for each marker in a single row
+    % (x1,y1,z1,x2,y2,z2,...,xn,yn,zn
+    % reshape the current row to be a 3xn matrix
     absLocs = reshape(allData(rowIdx,:),3,[]);
+
+    % subtract off the mean point location
     meanLoc = mean(absLocs,2);
     relLocs = absLocs - meanLoc;
+    
+    % order points according to distance from the centroid
     relDists = vecnorm(relLocs,2,1);  % 2-Norm along columns
     [sortRelDist,relDistSortIdx] = sort(relDists);
     allRelDist(end+1,:) = sortRelDist;
     sortedLocs = absLocs(:,relDistSortIdx);
     
+    % compute eigenvalues and eigenvectors of the centered covariance matrix
     [vec val] = eig(relLocs*relLocs');
     
     % rearrange eigenvectors in order of decreasing eigenvalues
@@ -100,24 +113,66 @@ zlim([-200,200]);
 estimate = reshape(mean(allRelXYZ),3,[])'
 
 
-% compare to ground truth if requested
-if(doCompareToGroundTruth)
-    % ground truth, relative to centroid
-    groundTruth = [160,0,0;230,0,0;305,0,0;263.67,-43.49,0;256,42.71,0];  % from Xiaoyao
-    groundTruth = groundTruth-repmat(mean(groundTruth),size(groundTruth,1),1);
-    
-    % align estimate with ground truth to see how close we came (measured by RMSE)
-    [tform,movingReg,rmse] = pcregistericp(pointCloud(estimate),pointCloud(groundTruth));%,'InitialTransform',affine3d([-1 0 0 0; 0 -1 0 0; 0 0 1 0; 0 0 0 1]));
-    rmse
-    
-    % plot results
-    figure;
-    plot3(movingReg.Location(:,1),movingReg.Location(:,2),movingReg.Location(:,3),'r+','MarkerSize',5);
-    plot3(groundTruth(:,1),groundTruth(:,2),groundTruth(:,3),'bo','MarkerSize',5);
-    % [~,sidx] = sort(estimate(:,1));
-    % est2 = estimate(sidx,:)
-    % est2 = est2 - repmat([est2(1,1) 0 0],5,1)
-    % [~,sidx] = sort(groundTruth(:,1));
-    % gt2 = groundTruth(sidx,:);
-    % gt2 = gt2 - repmat([gt2(1,1) 0 0],5,1)
-end
+% compile information for tool definition ROM file
+% tool definition file contents
+romOptions.subType  = hex2dec('01');    % Subtype: 0x00 = Removable tip; 0x01= Fixed Tip; 0x02 = Undefined
+romOptions.toolType = hex2dec('02');    % Tool type: 0x01 = Ref; 0x02 = Probe; 0x03 = Switch; 0x0C = GPIO, etc…
+romOptions.toolRev  = 0;              % 0 - 999
+romOptions.seqNum   = 0;   % 0 - 1023
+romOptions.maxAngle = 90;    % [deg] (integer)
+romOptions.numMarkers = size(estimate,1);
+romOptions.minMarkers = 3;
+romOptions.max3DError = 2.000;  % [mm]
+romOptions.minSpread1 = 0;
+romOptions.minSpread2 = 0;
+romOptions.minSpread3 = 0;
+romOptions.numFaces = 1;   % TODO: allow more than one face
+romOptions.numGroups = 1;  % TODO: allow more than one group
+romOptions.trackLED = 31;  % LEDs: 0x1F = None; 0x00 = A; 0x13 = T; 0x1E = Set in GPIO 
+romOptions.led1 = 31;            % 0x1F = 0d31
+romOptions.led2 = 31;
+romOptions.led3 = 31;
+romOptions.gpio1 = 9;  % GPIOs: 0x09 = Input, 0x10 = Output; 0x30 = Always High; 0x11 = Output w/ Feedback; 0x00 = None
+romOptions.gpio2 = 0;
+romOptions.gpio3 = 0;
+romOptions.gpio4 = 0;
+romOptions.mfgr = mfgrString;
+romOptions.partNum = partNumString;
+romOptions.enhAlgFlags = 128;
+romOptions.MrkrType = 41; % Marker Type: 0x11 = 880 Active Ceramic; 0x12 = 930; 0x10 = NDI Legacy; 0x29 = Passive Marker, Sphere; 0x31 = Passive Marker, Disk 
+               % 0x29 = 0d41
+               
+% marker locations... TODO: roll into a function where this is provided as input
+romOptions.markerLocs = zeros(20,3);
+romOptions.markerLocs(1:size(estimate,1),1:size(estimate,2)) = estimate;
+
+% default normal to the face (and all markers on it)
+% TODO: make this work with more than one face...
+defaultNormal = [0 0 1];
+defaultNormal = defaultNormal/norm(defaultNormal);
+romOptions.markerNormals = zeros(20,3);
+romOptions.markerNormals(1,:) = defaultNormal;
+romOptions.markerNormals(2,:) = defaultNormal;
+romOptions.markerNormals(3,:) = defaultNormal;
+romOptions.markerNormals(4,:) = defaultNormal;
+romOptions.markerNormals(5,:) = defaultNormal;
+romOptions.faceNormals = zeros(8,3);
+romOptions.faceNormals(1,:) = defaultNormal;
+
+% sequence number byte
+romOptions.seqNumByte = bitand(uint16(romOptions.seqNum),hex2dec('FF'));
+seqNumPartialByte = double(bitand(swapbytes(uint16(romOptions.seqNum)),hex2dec('FF')));
+
+% encode the date
+thisDateVec = datevec(date);
+datevar = bitshift((datenum(thisDateVec)-datenum(datetime(thisDateVec(1),1,1))),2);  % day of year
+datevar = bitor(datevar,seqNumPartialByte);                    % add two bits of sequence number
+datevar = bitor(datevar,bitshift((thisDateVec(2)-1),11));      % month
+datevar = bitor(bitshift((thisDateVec(1) - 1900),15),datevar); % year
+romOptions.dateBytes = datevar;
+
+% faces and groups
+romOptions.faceGrpByte = bitor(uint8(bitshift(romOptions.numFaces,3)),uint8(bitand(romOptions.numGroups,hex2dec('07'))));
+
+% write ROM file
+writeToolDefROMFile(romFileName,romOptions);
