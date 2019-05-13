@@ -1,26 +1,28 @@
 % restart
-close all; clear all; clc;
+close all; clear; clc;
 
+% name of tool definition ROM file to write
 romFileName = 'testToolDef.rom';
 
+% tool definition file contents
 subType  = hex2dec('01');    % Subtype: 0x00 = Removable tip; 0x01= Fixed Tip; 0x02 = Undefined
 toolType = hex2dec('02');    % Tool type: 0x01 = Ref; 0x02 = Probe; 0x03 = Switch; 0x0C = GPIO, etc…
-toolRev  = 999;              % 0 - 999
-seqNum   = 976;   % 0 - 1023
+toolRev  = 0;              % 0 - 999
+seqNum   = 0;   % 0 - 1023
 maxAngle = 90;    % [deg] (integer)
-numMarkers = 5;
+numMarkers = 4;
 minMarkers = 3;
 max3DError = 2.000;  % [mm]
 minSpread1 = 0;
 minSpread2 = 0;
 minSpread3 = 0;
-numFaces = 8;
-numGroups = 2;
+numFaces = 1;
+numGroups = 1;
 trackLED = 31;  % LEDs: 0x1F = None; 0x00 = A; 0x13 = T; 0x1E = Set in GPIO 
-led1 = 31;
+led1 = 31;            % 0x1F = 0d31
 led2 = 31;
 led3 = 31;
-gpio1 = 9;  %GPIOs: 0x09 = Input, 0x10 = Output; 0x30 = Always High; 0x11 = Output w/ Feedback; 0x00 = None
+gpio1 = 9;  % GPIOs: 0x09 = Input, 0x10 = Output; 0x30 = Always High; 0x11 = Output w/ Feedback; 0x00 = None
 gpio2 = 0;
 gpio3 = 0;
 gpio4 = 0;
@@ -28,9 +30,9 @@ mfgr = 'Thayer';
 partNum = 'Xi Collar 001';
 enhAlgFlags = 128;
 MrkrType = 41; % Marker Type: 0x11 = 880 Active Ceramic; 0x12 = 930; 0x10 = NDI Legacy; 0x29 = Passive Marker, Sphere; 0x31 = Passive Marker, Disk 
-
-
-
+               % 0x29 = 0d41
+               
+% marker locations... TODO: roll into a function where this is provided as input
 markerLocs = zeros(20,3);
 markerLocs(1,:) = [13.02 -0.37 0.44];
 markerLocs(2,:) = [-11.55 43.12 -0.03];
@@ -38,6 +40,7 @@ markerLocs(3,:) = [-22.63 -42.31 -0.03];
 markerLocs(4,:) = [-62.08 2.88 -0.17];
 markerLocs(5,:) = [83.24 -3.32 -0.21];
 
+% default normal to the face (and all markers on it)
 defaultNormal = [0.015600 -0.002000 -0.9999];
 defaultNormal = defaultNormal/norm(defaultNormal);
 markerNormals = zeros(20,3);
@@ -46,50 +49,24 @@ markerNormals(2,:) = defaultNormal;
 markerNormals(3,:) = defaultNormal;
 markerNormals(4,:) = defaultNormal;
 markerNormals(5,:) = defaultNormal;
-
 faceNormals = zeros(8,3);
 faceNormals(1,:) = defaultNormal;
 
 % sequence number byte
 seqNumByte = bitand(uint16(seqNum),hex2dec('FF'));
-% dec2hex(seqNumByte)
 seqNumPartialByte = double(bitand(swapbytes(uint16(seqNum)),hex2dec('FF')));
 
-% compose a date... don't foget to update checksum afterward!
+% encode the date
  thisDateVec = datevec('27-FEB-2017');
 %thisDateVec = datevec(date);
 datevar = bitshift((datenum(thisDateVec)-datenum(datetime(thisDateVec(1),1,1))),2);  % day of year
-
 datevar = bitor(datevar,seqNumPartialByte);                    % add two bits of sequence number
 datevar = bitor(datevar,bitshift((thisDateVec(2)-1),11));      % month
 datevar = bitor(bitshift((thisDateVec(1) - 1900),15),datevar); % year
-dec2hex(bitshift(swapbytes(uint32(datevar)),-8))               % date bytes for binary file
 
 % faces and groups
 faceGrpByte = bitor(uint8(bitshift(numFaces,3)),uint8(bitand(numGroups,hex2dec('07'))));
 
-% try to compute checksum...
-addpath('C:\Users\f002r5k\GitHub\ndi-polaris-tracker\matlab');
-binFile = fopen('medtronic_fromdata_1_h.rom');
-[readBytes, numBytes] = fread(binFile);
-fclose(binFile);
-readStr = char(readBytes)';
-% get actual checksum from file
-realCSum = reshape(dec2hex(double(readStr(5:6)))',1,[]);
-
-byteSum = uint16(0);
-for byteNum = 7:numBytes
-    byteSum = byteSum + readBytes(byteNum);
-end
-csum = dec2hex(swapbytes(uint16(sum(readBytes(7:end)))))
-
-
-% decode a floating point number from ROM file
-% swapbytes(typecast( uint32( hex2dec( 'CEAAAFBF' ) ), 'single'))
-
-% encode a floating point number from ROM file
-
-%%
 % initialize output string
 writeStr = repmat(uint8(0),1,752);
 
@@ -163,13 +140,29 @@ for faceIdx = 1:size(faceNormals,1)
    writeStr(baseByteIdx + 8 + [0:3]) = typecast(single(faceNormals(faceIdx,3)),'uint8'); % z location
 end
 
-% firing sequence
+% firing sequence, face and group assignments
 for markerIdx = 1:numMarkers
+    % firing sequence
     writeStr(markerIdx + 552) = markerIdx-1;
+    
+    % assign all markers to first face
+    writeStr(markerIdx + 613) = 1;
+    
+    % assign all markers to first group
+    writeStr(markerIdx + 633) = 1;
 end
 
+% compute and add checksum
+byteSum = uint16(0);
+for byteNum = 7:length(writeStr)
+    byteSum = byteSum + uint16(writeStr(byteNum));
+end
+writeStr(5:6) = typecast(uint16(byteSum),'uint8'); % TODO: requires little endian system
+
+% write data to ROM file
 fidOut = fopen(romFileName,'w');
 fwrite(fidOut,writeStr);
 fclose(fidOut);
 
-
+% decode a floating point number from ROM file
+% swapbytes(typecast( uint32( hex2dec( 'CEAAAFBF' ) ), 'single'))
