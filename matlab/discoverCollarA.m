@@ -2,12 +2,12 @@
 close all; clear all; clc;
 
 % options
-numICPAngs = 4; % rotate to this many initial positions (for each: as observed, flipped)
-minRMSEThreshold = 1.00; % [mm]
-doShowAllPlots = 0;
+rawDataFile = 'collar_discovery_b.csv';
 romFileName = 'collarTestA.rom';
 mfgrString = 'Thayer';
 partNumString = 'Xi Collar 001';
+numICPAngs = 4; % rotate to this many initial positions (for each: as observed, flipped)
+minRMSEThreshold = 1.00; % [mm]
 
 % expected marker positions
 marker_nominal_diam = 2.3*25.4; % [mm]
@@ -32,7 +32,7 @@ plot3(marker_nom_locs(:,1),marker_nom_locs(:,2),marker_nom_locs(:,3),'b.','Marke
 axis equal;
 
 % load data
-allData = load('collar_discovery_c.csv');
+allData = load(rawDataFile);
 
 % data storage
 % allRelDist = [];
@@ -52,7 +52,7 @@ for rowIdx = 1:size(allData,1)
     relLocs = absLocs - meanLoc;
     
     % compute eigenvalues and eigenvectors of the centered covariance matrix
-    [vec val] = eig(relLocs*relLocs');
+    [vec, val] = eig(relLocs*relLocs');
     
     % rearrange eigenvectors in order of decreasing eigenvalues
     % so x axis has the largest variation, and z axis has the least
