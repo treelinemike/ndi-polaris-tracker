@@ -259,6 +259,7 @@ disableOutputFileChange(hObject, eventdata, handles);
 set(handles.connectbutton,'Enable','off');
 set(handles.rbtrack,'Enable','off');
 set(handles.rbid,'Enable','off');
+set(handles.nummarkers,'Enable','off');
 
 % flag for errors in connection
 connectError = 0;
@@ -276,7 +277,7 @@ if(~connectError)
     toolsUsed = find(toolsUsedMask);
     setappdata(handles.mainpanel,'toolsUsed',toolsUsed);
     if(length(toolsUsed) == 0)
-        waitfor(msgbox('No tool definition file(s) specified!'));
+        waitfor(msgbox('No tool definition file(s) specified! Load a placeholder tool definition file for tool ID mode.'));
         connectError = 1;
     elseif( max(toolsUsed) < 4 ) % ports A,B,C only
         if( get(handles.rbtrack,'Value') && ~get(handles.rbid,'Value'))
@@ -590,6 +591,10 @@ set(handles.startcap,'Enable','off');
 set(handles.capturenote,'Enable','off');
 set(handles.rbtrack,'Enable','on');
 set(handles.rbid,'Enable','on');
+if( ~get(handles.rbtrack,'Value') && get(handles.rbid,'Value'))
+    set(handles.nummarkers,'Enable','on');
+end
+
 resetToolStatusIndicators(hObject, eventdata, handles);
 
 % --- Executes on button press in disconnectbutton.

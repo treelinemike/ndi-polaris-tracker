@@ -140,7 +140,7 @@ romOptions.mfgr = mfgrString;
 romOptions.partNum = partNumString;
 romOptions.enhAlgFlags = 128;
 romOptions.MrkrType = 41; % Marker Type: 0x11 = 880 Active Ceramic; 0x12 = 930; 0x10 = NDI Legacy; 0x29 = Passive Marker, Sphere; 0x31 = Passive Marker, Disk 
-               % 0x29 = 0d41
+               % 0x29 = 0d43
                
 % marker locations... TODO: roll into a function where this is provided as input
 romOptions.markerLocs = zeros(20,3);

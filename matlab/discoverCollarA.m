@@ -2,8 +2,8 @@
 close all; clear all; clc;
 
 % options
-rawDataFile = 'collar_discovery_b.csv';
-romFileName = 'collarTestA.rom';
+rawDataFile = 'june26_scope_id_001.csv';
+romFileName = 'june26_scope_collar_001.rom';
 mfgrString = 'Thayer';
 partNumString = 'Xi Collar 001';
 numICPAngs = 4; % rotate to this many initial positions (for each: as observed, flipped)
@@ -147,7 +147,7 @@ romOptions.seqNum   = 0;   % 0 - 1023
 romOptions.maxAngle = 90;    % [deg] (integer)
 romOptions.numMarkers = size(estimate,1);
 romOptions.minMarkers = 3;
-romOptions.max3DError = 2.000;  % [mm]
+romOptions.max3DError = 0.500;  % [mm]
 romOptions.minSpread1 = 0;
 romOptions.minSpread2 = 0;
 romOptions.minSpread3 = 0;

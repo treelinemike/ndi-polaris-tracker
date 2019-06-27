@@ -20,8 +20,8 @@ SERIAL_COM_PORT   = '';  % set this to '' for automatic detection
 SERIAL_TERMINATOR = hex2dec('0D');   % 0x0D = 0d13 = CR
 SERIAL_TIMEOUT    = 0.05;            % [s]
 BASE_TOOL_CHAR = 64;
-COLLECT_MODE = 0;   %0= normal; 1 = new tool data collection
-NUM_MARKERS = 3;    % number of markers in array, used only when learning an array
+COLLECT_MODE = 1;   %0= normal; 1 = new tool data collection
+NUM_MARKERS = 5;    % number of markers in array, used only when learning an array
 
 % gx transform mapping (tool # -> line index in GX response)
 gx_transform_map = [6 7 8 10 11 12 14 15 16];

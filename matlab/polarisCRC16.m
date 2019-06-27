@@ -2,9 +2,16 @@
 % CRC16 implementation adapted from NDI Polaris API user guide
 % Author: mkokko (but copied from API guide)
 % Date:   30-NOV-2018
-function crc = polarisCRC16(crc, addBytes)
+function crc = polarisCRC16(crc, addBytes, varargin)
 
-oddParity = [0,1,1,0,1,0,0,1,1,0,0,1,0,1,1,0]; % constant
+if(nargin > 2)
+    disp('using provided polynomial');
+    crcPolynomial = str2num(char(dec2bin(varargin{1}))')';
+    crcPolynomial = [ zeros(1,16-length(crcPolynomial)) crcPolynomial]
+else
+    crcPolynomial = [0,1,1,0,1,0,0,1,1,0,0,1,0,1,1,0]; % constant
+end
+
 crc = uint16(crc); % 16-bit unsigned int
 
 % add to CRC for each byte of data in input string
@@ -14,7 +21,7 @@ for dataIdx = 1:length(addBytes)
     data = bitand( (bitxor(data, bitand(crc, 255) ) ) , 255 );
     crc = bitshift(crc,-8);
         
-    if( bitxor( oddParity( bitand(data,15)+1), oddParity(bitshift(data,-4)+1)) ) 
+    if( bitxor( crcPolynomial( bitand(data,15)+1), crcPolynomial(bitshift(data,-4)+1)) ) 
         crc = bitxor(crc,49153);
     end
     
