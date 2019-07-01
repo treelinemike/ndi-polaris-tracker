@@ -2,8 +2,8 @@
 close all; clear all; clc;
 
 % options
-rawDataFile = 'june26_scope_id_001.csv';
-romFileName = 'june26_scope_collar_001.rom';
+rawDataFile = 'collar_7_marker_id_b.csv';
+romFileName = 'collar_7_marker_id_b.rom';
 mfgrString = 'Thayer';
 partNumString = 'Xi Collar 001';
 numICPAngs = 4; % rotate to this many initial positions (for each: as observed, flipped)
@@ -12,7 +12,8 @@ minRMSEThreshold = 1.00; % [mm]
 % expected marker positions
 marker_nominal_diam = 2.3*25.4; % [mm]
 marker_all_ang_pos = [41,67,80,93,119,141,167,180,193,219,241,267,280,293,319]';  % [deg]  
-marker_nominal_ang_pos = [67,119,193,280,319]';  % [deg]
+% marker_nominal_ang_pos = [41,80,119,167,219,267,319]';  % [deg]
+marker_nominal_ang_pos = [41,119,167,219,319]';  % [deg]
 
 % generate prior marker arrangement
 marker_all_locs = (marker_nominal_diam/2) * [cos(marker_all_ang_pos*pi/180) sin(marker_all_ang_pos*pi/180)];
@@ -36,7 +37,7 @@ allData = load(rawDataFile);
 
 % data storage
 % allRelDist = [];
-allRegPts = zeros(5,3,size(allData,1));
+allRegPts = zeros(length(marker_nominal_ang_pos),3,size(allData,1));
 regPtIdx = 1;
 
 % look at each row (individual observation) separately
@@ -176,11 +177,9 @@ romOptions.markerLocs(1:size(estimate,1),1:size(estimate,2)) = estimate;
 defaultNormal = [0 0 1];
 defaultNormal = defaultNormal/norm(defaultNormal);
 romOptions.markerNormals = zeros(20,3);
-romOptions.markerNormals(1,:) = defaultNormal;
-romOptions.markerNormals(2,:) = defaultNormal;
-romOptions.markerNormals(3,:) = defaultNormal;
-romOptions.markerNormals(4,:) = defaultNormal;
-romOptions.markerNormals(5,:) = defaultNormal;
+for markerNormalIdx = 1:length(marker_nominal_ang_pos)
+    romOptions.markerNormals(markerNormalIdx,:) = defaultNormal;
+end
 romOptions.faceNormals = zeros(8,3);
 romOptions.faceNormals(1,:) = defaultNormal;
 
