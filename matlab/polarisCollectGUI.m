@@ -536,7 +536,7 @@ if(~connectError)
     elseif(isfile(outputFilePath))
         % desired output file is specified and it already exists
         % if it exists already, we need to add a number
-        [mat,tok] = regexp(outputFilePath,'(?:^|\\)(\w+?)([0-9])*(\.\w+)?$','match','tokens');
+        [mat,tok] = regexp(outputFilePath,'(?:^|\\)([\w\-]+?)([0-9])*(\.\w+)?$','match','tokens');
         if(isempty(tok) || ~prod( size(tok{1}) == [1 3]) )
             tok{1}
             error('Selected filename could not be parsed.');
