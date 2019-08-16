@@ -22,7 +22,7 @@ function varargout = polarisCollectGUI(varargin)
 
 % Edit the above text to modify the response to help polarisCollectGUI
 
-% Last Modified by GUIDE v2.5 27-Mar-2019 14:20:28
+% Last Modified by GUIDE v2.5 15-Aug-2019 20:22:41
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -77,12 +77,14 @@ setappdata(handles.mainpanel,'toolsUsed',[]);
 setappdata(handles.mainpanel,'gx_transform_map',[6 7 8 10 11 12 14 15 16]);
 setappdata(handles.mainpanel,'endTrackingFlag',0);
 setappdata(handles.mainpanel,'DEBUG_MODE',0);   % SET DEBUG MODE HERE, 0 surpresses display output for faster data rate %
+setappdata(handles.mainpanel,'send_video_cmd',0);
 
 % configure various UI components
 updateOutputFilePath(hObject, eventdata, handles);
 updateToolDefDisplay(hObject, eventdata, handles);
 set(handles.disconnectbutton,'Enable','off');
 set(handles.startcap,'Enable','off');
+set(handles.startcapvid,'Enable','off');
 set(handles.stopcap,'Enable','off');
 set(handles.singlecap,'Enable','off');
 set(handles.capturenote,'Enable','off');
@@ -571,6 +573,7 @@ if(~connectError)
     set(handles.disconnectbutton,'Enable','on');
     set(handles.singlecap,'Enable','on');
     set(handles.startcap,'Enable','on');
+    set(handles.startcapvid,'Enable','on');
     if(get(handles.rbtrack,'Value') == 1)
         set(handles.capturenote,'Enable','on');
     end
@@ -588,6 +591,7 @@ set(handles.disconnectbutton,'Enable','off');
 set(handles.disconnectbutton,'Enable','off');
 set(handles.singlecap,'Enable','off');
 set(handles.startcap,'Enable','off');
+set(handles.startcapvid,'Enable','off');
 set(handles.capturenote,'Enable','off');
 set(handles.rbtrack,'Enable','on');
 set(handles.rbid,'Enable','on');
@@ -743,6 +747,7 @@ function singlecap_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 set(handles.capturenote,'Enable','off');
 set(handles.startcap,'Enable','off');
+set(handles.startcapvid,'Enable','off');
 set(handles.singlecap,'Enable','off');
 set(handles.disconnectbutton,'Enable','off');
 
@@ -767,6 +772,7 @@ if(get(handles.rbtrack,'Value') == 1)
     set(handles.capturenote,'Enable','on');
 end
 set(handles.startcap,'Enable','on');
+set(handles.startcapvid,'Enable','on');
 set(handles.singlecap,'Enable','on');
 set(handles.disconnectbutton,'Enable','on');
 
@@ -777,17 +783,68 @@ function startcap_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 set(handles.capturenote,'Enable','off');
 set(handles.startcap,'Enable','off');
+set(handles.startcap,'Enable','off');
 set(handles.singlecap,'Enable','off');
 set(handles.stopcap,'Enable','on');
 set(handles.disconnectbutton,'Enable','off');
 drawnow;
+    
+% LOCAL flag to remember to close hyperdeck TCPIP
+% probably doesn't need to be defined here
+% but doing this anyway for clarity in variable scope
+doCloseHyperDecks = 0;
+    
+% start 
+if(getappdata(handles.mainpanel,'send_video_cmd') == 1)
+    
+    % remember to close HyperDecks
+    doCloseHyperDecks = 1;
 
-setappdata(handles.mainpanel,'endTrackingFlag',0);
+    % reset flag to send video start commands
+    setappdata(handles.mainpanel,'send_video_cmd',0);
+
+    % set flag to allow tracking
+    setappdata(handles.mainpanel,'endTrackingFlag',0);
+    
+    % create TCPIP objects for each Hyper Deck
+    % TODO: this shouldn't be hard coded!!
+    hyperDeckLeft = tcpip('192.168.10.50',9993);
+    hyperDeckRight = tcpip('192.168.10.60',9993);
+    
+    % open both hyperdeck TCPIP channels
+    fopen(hyperDeckLeft);
+    fopen(hyperDeckRight);
+    if(~strcmp(hyperDeckLeft.status,'open'))
+        error('Error opening LEFT HyperDeck TCP/IP channel.');
+    end
+    if(~strcmp(hyperDeckRight.status,'open'))
+        error('Error opening RIGHT HyperDeck TCP/IP channel.');
+    end
+    
+    % flush input and output buffers
+    flushinput(hyperDeckLeft);
+    flushoutput(hyperDeckLeft);
+    flushinput(hyperDeckRight);
+    flushoutput(hyperDeckRight);
+    
+    % start recording on both Hyper Decks
+    % Note: \n seems to work in MATLAB on windows, need \r\n in python
+    fprintf(hyperDeckLeft,'record\n');
+    fprintf(hyperDeckRight,'record\n');
+end
+
+% record tracking data until stop button is pressed
 while(getappdata(handles.mainpanel,'endTrackingFlag') == 0)
     polarisCaptureData(hObject, eventdata, handles);
     drawnow; % this is key! needs to be here for interruption from stop button to work...
 end
 setappdata(handles.mainpanel,'endTrackingFlag',0);
+
+% close TCPIP ports
+if(doCloseHyperDecks)
+    fclose(hyperDeckLeft);
+    fclose(hyperDeckRight);
+end
 
 % --- Executes on button press in stopcap.
 function stopcap_Callback(hObject, eventdata, handles)
@@ -1306,3 +1363,11 @@ function label_notload_Callback(hObject, eventdata, handles)
 % hObject    handle to label_notload (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
+
+
+% --- Executes on button press in startcapvid.
+function startcapvid_Callback(hObject, eventdata, handles)
+% hObject    handle to startcapvid (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+setappdata(handles.mainpanel,'send_video_cmd',1);
