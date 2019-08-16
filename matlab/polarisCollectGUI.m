@@ -783,7 +783,7 @@ function startcap_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 set(handles.capturenote,'Enable','off');
 set(handles.startcap,'Enable','off');
-set(handles.startcap,'Enable','off');
+set(handles.startcapvid,'Enable','off');
 set(handles.singlecap,'Enable','off');
 set(handles.stopcap,'Enable','on');
 set(handles.disconnectbutton,'Enable','off');
@@ -865,6 +865,7 @@ end
 set(handles.stopcap,'Enable','off');
 set(handles.singlecap,'Enable','on');
 set(handles.startcap,'Enable','on');
+set(handles.startcapvid,'Enable','on');
 set(handles.disconnectbutton,'Enable','on');
 
 function capturenote_Callback(hObject, eventdata, handles)
@@ -1371,3 +1372,4 @@ function startcapvid_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 setappdata(handles.mainpanel,'send_video_cmd',1);
+startcap_Callback(hObject, eventdata, handles);
