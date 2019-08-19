@@ -78,7 +78,7 @@ setappdata(handles.mainpanel,'gx_transform_map',[6 7 8 10 11 12 14 15 16]);
 setappdata(handles.mainpanel,'endTrackingFlag',0);
 setappdata(handles.mainpanel,'DEBUG_MODE',0);   % SET DEBUG MODE HERE, 0 surpresses display output for faster data rate %
 setappdata(handles.mainpanel,'send_video_cmd',0);
-
+setappdata(handles.mainpanel,'pointHandles',[]);
 % configure various UI components
 updateOutputFilePath(hObject, eventdata, handles);
 updateToolDefDisplay(hObject, eventdata, handles);
@@ -94,6 +94,51 @@ resetToolStatusIndicators(hObject, eventdata, handles);
 % tip calibration not implemented yet...
 set(handles.tipcalbutton,'Enable','off');
 set(handles.tipcalclearbutton,'Enable','off');
+
+% initialize plots
+% make sure GridColorMode is set to manual in GUIDE figure object!
+axes(handles.axes_frontview);
+hold on; grid on;
+axis equal;
+xlim([-750,750]);
+ylim([-750, 750]);
+r = 500;
+theta = 0:0.01:2*pi;
+plot(r*cos(theta),r*sin(theta),'k-','LineWidth',1.6);
+
+axes(handles.axes_topview);
+hold on; grid on;
+axis equal;
+xlim([-100,2650]);
+ylim([-750, 750]);
+plot(0,0,'k.','MarkerSize',25);
+plot([0 0],[-250 250],'k-','LineWidth',3);
+theta = pi/2:0.01:3*pi/2;
+plot(1900+r*cos(theta),r*sin(theta),'k-','LineWidth',1.6);
+plot([1900 2400 2400 1900],[500 500 -500 -500],'k-','LineWidth',1.6);
+
+axes(handles.axes_sideview);
+hold on; grid on;
+axis equal;
+xlim([-100,2650]);
+ylim([-750, 750]);
+plot(0,0,'k.','MarkerSize',25);
+plot([1900 2400 2400 1900],[500 500 -500 -500],'k-','LineWidth',1.6);
+theta = pi/2:0.01:3*pi/2;
+plot(1900+r*cos(theta),r*sin(theta),'k-','LineWidth',1.6);
+grid on;
+
+pointHandles = getappdata(handles.mainpanel,'pointHandles');
+for toolIdx = 1:9
+    axes(handles.axes_frontview);
+    pointHandles(toolIdx).front = text(nan,nan,char(64+toolIdx),'FontSize',18,'FontWeight','bold','HorizontalAlignment','Center');
+    axes(handles.axes_sideview);
+    pointHandles(toolIdx).side = text(nan,nan,char(64+toolIdx),'FontSize',18,'FontWeight','bold','HorizontalAlignment','Center');
+    axes(handles.axes_topview);
+    pointHandles(toolIdx).top = text(nan,nan,char(64+toolIdx),'FontSize',18,'FontWeight','bold','HorizontalAlignment','Center');
+end
+setappdata(handles.mainpanel,'pointHandles',pointHandles);
+
 
 % UIWAIT makes polarisCollectGUI wait for user response (see UIRESUME)
 % uiwait(handles.mainpanel);
@@ -118,7 +163,7 @@ set(handles.status_i,'BackgroundColor',notLoadColor);
 %  2 -> out of volume
 %  3 -> not enough markers
 %  4 -> tool not loaded
-function setToolStatusIndicator(toolIdx,statusCode,handles)
+function indicatorColor = setToolStatusIndicator(toolIdx,statusCode,handles)
 
 % determine what color to set indicator
 switch(statusCode)
@@ -1134,7 +1179,8 @@ gx_cmd_str       = getappdata(handles.mainpanel,'gx_cmd_str');
 gx_transform_map = getappdata(handles.mainpanel,'gx_transform_map');
 toolsUsed        = getappdata(handles.mainpanel,'toolsUsed');
 BASE_TOOL_CHAR   = getappdata(handles.mainpanel,'BASE_TOOL_CHAR');
-
+pointHandles     = getappdata(handles.mainpanel,'pointHandles')
+               
 % keep track of whether data acquired, and repeat until it is or we hit a
 % timeout
 dataValidFlag = 0;
@@ -1203,9 +1249,19 @@ while( ~dataValidFlag && numRetries < 10)
                 end
                 fprintf(fidDataOut,'%0.4f,%0.2f,%s,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%+0.2f,%+0.2f,%+0.2f,%+0.4f,%s\n', timestamp, unixtimestamp, char(BASE_TOOL_CHAR+toolNum), q(1), q(2), q(3), q(4), t(1), t(2), t(3), err, captureNoteString);
                 
+                % plot tool position
+                pointHandles(toolNum).front.Position = [ t(2),  -t(1) ];
+                pointHandles(toolNum).side.Position  = [ -t(3), -t(1) ];
+                pointHandles(toolNum).top.Position   = [ -t(3), -t(2) ];
+                
                 % flag this as valid data
                 dataValidFlag = 1;
             else
+                % plot tool position
+                pointHandles(toolNum).front.Position = [ NaN, NaN ];
+                pointHandles(toolNum).side.Position  = [ NaN, NaN ];
+                pointHandles(toolNum).top.Position   = [ NaN, NaN ];
+                
                 % TODO: MAKE THIS MORE ROBUST, FAILS IF transform result is 'MISSING'
                 %warning(['Tool ' char(BASE_TOOL_CHAR+toolNum) ' unexpected transform result: ' thisTransformStr]);
             end
@@ -1216,24 +1272,33 @@ while( ~dataValidFlag && numRetries < 10)
             volStatusCode = thisVolStatusStr((9-2*((mod(toolNum-1,3)+1))));
             
             % set the status indicator on the GUI appropriately
+            toolStatusColor = [0 0 0];
             if( strcmp(volStatusCode,'7') )
                 % out of volume
-                setToolStatusIndicator(toolNum,2,handles);
+                toolStatusColor = setToolStatusIndicator(toolNum,2,handles);
+                pointHandles(toolNum).front.Color = toolStatusColor;
+                pointHandles(toolNum).side.Color = toolStatusColor;
+                pointHandles(toolNum).top.Color = toolStatusColor;
             elseif( strcmp(volStatusCode,'B') )
                 % partially out of volume
-                setToolStatusIndicator(toolNum,1,handles);
+                toolStatusColor = setToolStatusIndicator(toolNum,1,handles);
+                pointHandles(toolNum).front.Color = toolStatusColor;
+                pointHandles(toolNum).side.Color = toolStatusColor;
+                pointHandles(toolNum).top.Color = toolStatusColor;
             elseif( strcmp(volStatusCode,'3') )
                 % potentially in volume
                 % need to make sure the "too few markers" flag isn't set
-                
                 thisMarkerStatusStr = respParts{ end-1 };
                 thisMarkerStatusHexDigit = thisMarkerStatusStr(10+12*(toolNum-1));
                 if(bitand(hex2dec(thisMarkerStatusHexDigit),bin2dec('0010')))
                     % too few markers
-                    setToolStatusIndicator(toolNum,3,handles);
+                    toolStatusColor = setToolStatusIndicator(toolNum,3,handles);
                 else
                     % tracking OK, turn indicator green
-                    setToolStatusIndicator(toolNum,0,handles);                    
+                    toolStatusColor = setToolStatusIndicator(toolNum,0,handles);
+                    pointHandles(toolNum).front.Color = toolStatusColor;
+                    pointHandles(toolNum).side.Color = toolStatusColor;
+                    pointHandles(toolNum).top.Color = toolStatusColor;
                 end
             else
                 warning(['Unsupported tool status code: ' volStatusCode]);
