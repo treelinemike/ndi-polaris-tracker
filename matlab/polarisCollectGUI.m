@@ -22,7 +22,7 @@ function varargout = polarisCollectGUI(varargin)
 
 % Edit the above text to modify the response to help polarisCollectGUI
 
-% Last Modified by GUIDE v2.5 19-Aug-2019 15:48:25
+% Last Modified by GUIDE v2.5 19-Aug-2019 19:51:49
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -107,6 +107,7 @@ ylim([-750, 750]);
 r = 500;
 theta = 0:0.01:2*pi;
 plot(r*cos(theta),r*sin(theta),'k-','LineWidth',1.6);
+plot([-750 750],[-650 -650],':','Color',0.7*ones(1,3),'LineWidth',6);
 
 axes(handles.axes_topview);
 hold on; grid on;
@@ -128,7 +129,7 @@ plot(0,0,'k.','MarkerSize',25);
 plot([1900 2400 2400 1900],[500 500 -500 -500],'k-','LineWidth',1.6);
 theta = pi/2:0.01:3*pi/2;
 plot(1900+r*cos(theta),r*sin(theta),'k-','LineWidth',1.6);
-grid on;
+plot([-100 2650],[-650 -650],':','Color',0.7*ones(1,3),'LineWidth',6);
 
 pointHandles = getappdata(handles.mainpanel,'pointHandles');
 for toolIdx = 1:9
@@ -1469,3 +1470,18 @@ function frameCount_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
+
+
+% --- Executes on button press in generateROM.
+function generateROM_Callback(hObject, eventdata, handles)
+% hObject    handle to generateROM (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+try
+    disp('Launching ROM generation script...');
+    discoverCollarA(get(handles.outputfile,'String'));
+catch ME
+    msgbox('Error in ROM generation function!');
+    rethrow(ME);
+end
+     

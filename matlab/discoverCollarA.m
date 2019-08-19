@@ -1,13 +1,20 @@
-% restart
-close all; clear all; clc;
+function discoverCollarA(rawDataFile)
 
-% options
-rawDataFile = 'collar_7_marker_id_b.csv';
-romFileName = 'collar_7_marker_id_b.rom';
+% generate rom file name
+[mat,tok] = regexp(rawDataFile,'([\w\-]+)\.\w+','match','tokens');
+if(isempty(tok))
+    error('Improperly formatted data file name!');
+end
+romFileName = [tok{1}{1} '.rom'];
+
+% general settings
 mfgrString = 'Thayer';
-partNumString = 'Xi Collar 001';
+partNumString = 'Xi Collar';
 numICPAngs = 4; % rotate to this many initial positions (for each: as observed, flipped)
 minRMSEThreshold = 1.00; % [mm]
+romMaxAngle = 90;    % [deg] (integer)
+romMinMarkers = 3;
+romMax3DError = 0.500;  % [mm]
 
 % expected marker positions
 marker_nominal_diam = 2.3*25.4; % [mm]
@@ -145,10 +152,10 @@ romOptions.subType  = hex2dec('01');    % Subtype: 0x00 = Removable tip; 0x01= F
 romOptions.toolType = hex2dec('02');    % Tool type: 0x01 = Ref; 0x02 = Probe; 0x03 = Switch; 0x0C = GPIO, etc…
 romOptions.toolRev  = 0;              % 0 - 999
 romOptions.seqNum   = 0;   % 0 - 1023
-romOptions.maxAngle = 90;    % [deg] (integer)
+romOptions.maxAngle = romMaxAngle;    % [deg] (integer)
 romOptions.numMarkers = size(estimate,1);
-romOptions.minMarkers = 3;
-romOptions.max3DError = 0.500;  % [mm]
+romOptions.minMarkers = romMinMarkers;
+romOptions.max3DError = romMax3DError;  % [mm]
 romOptions.minSpread1 = 0;
 romOptions.minSpread2 = 0;
 romOptions.minSpread3 = 0;
@@ -199,4 +206,5 @@ romOptions.dateBytes = datevar;
 romOptions.faceGrpByte = bitor(uint8(bitshift(romOptions.numFaces,3)),uint8(bitand(romOptions.numGroups,hex2dec('07'))));
 
 % write ROM file
+disp(['Writing ' romFileName]);
 writeToolDefROMFile(romFileName,romOptions);
