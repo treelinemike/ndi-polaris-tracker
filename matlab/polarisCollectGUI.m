@@ -22,7 +22,7 @@ function varargout = polarisCollectGUI(varargin)
 
 % Edit the above text to modify the response to help polarisCollectGUI
 
-% Last Modified by GUIDE v2.5 15-Aug-2019 20:22:41
+% Last Modified by GUIDE v2.5 19-Aug-2019 15:48:25
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -79,6 +79,8 @@ setappdata(handles.mainpanel,'endTrackingFlag',0);
 setappdata(handles.mainpanel,'DEBUG_MODE',0);   % SET DEBUG MODE HERE, 0 surpresses display output for faster data rate %
 setappdata(handles.mainpanel,'send_video_cmd',0);
 setappdata(handles.mainpanel,'pointHandles',[]);
+setappdata(handles.mainpanel,'validFrameCount',0);
+
 % configure various UI components
 updateOutputFilePath(hObject, eventdata, handles);
 updateToolDefDisplay(hObject, eventdata, handles);
@@ -1179,7 +1181,7 @@ gx_cmd_str       = getappdata(handles.mainpanel,'gx_cmd_str');
 gx_transform_map = getappdata(handles.mainpanel,'gx_transform_map');
 toolsUsed        = getappdata(handles.mainpanel,'toolsUsed');
 BASE_TOOL_CHAR   = getappdata(handles.mainpanel,'BASE_TOOL_CHAR');
-pointHandles     = getappdata(handles.mainpanel,'pointHandles')
+pointHandles     = getappdata(handles.mainpanel,'pointHandles');
                
 % keep track of whether data acquired, and repeat until it is or we hit a
 % timeout
@@ -1308,6 +1310,7 @@ while( ~dataValidFlag && numRetries < 10)
         end
     elseif( ~get(handles.rbtrack,'Value') && get(handles.rbid,'Value'))
         % handle tool identification mode
+        drawnow;
         [match,tok] = regexp(thisResp,'([+-]+[0-9]+)','match','tokens');
         
         % determine how many markers we should see
@@ -1319,6 +1322,11 @@ while( ~dataValidFlag && numRetries < 10)
             outFormatStr = repmat('%+0.4f,',1,length(tokMat));
             outFormatStr = [outFormatStr(1:end-1) '\n'];
             fprintf(fidDataOut,outFormatStr,tokMat);
+            
+            % increment frame counter
+            validFrameCount = getappdata(handles.mainpanel,'validFrameCount') + 1;
+            set(handles.frameCount,'String',num2str(validFrameCount));
+            setappdata(handles.mainpanel,'validFrameCount',validFrameCount);
             
             % flag this as valid data
             dataValidFlag = 1;
@@ -1438,3 +1446,26 @@ function startcapvid_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 setappdata(handles.mainpanel,'send_video_cmd',1);
 startcap_Callback(hObject, eventdata, handles);
+
+
+
+function frameCount_Callback(hObject, eventdata, handles)
+% hObject    handle to frameCount (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of frameCount as text
+%        str2double(get(hObject,'String')) returns contents of frameCount as a double
+
+
+% --- Executes during object creation, after setting all properties.
+function frameCount_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to frameCount (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
