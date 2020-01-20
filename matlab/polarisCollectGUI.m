@@ -142,10 +142,12 @@ for toolIdx = 1:9
 end
 setappdata(handles.mainpanel,'pointHandles',pointHandles);
 
+% important reminders
+warndlg('Turn off Bluetooth radio!','Reminder: Bluetooth','modal')
+warndlg('Press REM on Blackmagic recorders!','Reminder: Blackmagic','modal')
 
 % UIWAIT makes polarisCollectGUI wait for user response (see UIRESUME)
 % uiwait(handles.mainpanel);
-
 % reset tool status "lights"
 function resetToolStatusIndicators(hObject, eventdata, handles)
 notLoadColor = get(handles.label_notload,'BackgroundColor');
@@ -371,12 +373,14 @@ if(~connectError)
         if(getappdata(handles.mainpanel,'DEBUG_MODE'))
             disp('Attempting to identify correct COM port...');
         end
-        [~,res]=system('chgport');
-        [mat,tok] = regexp(res, '([A-Z0-9]+)[\s=]+([\\A-Za-z]+)[0-9]+','match','tokens');
+%         [~,res]=system('chgport');
+        [~,res] = system('reg query HKLM\HARDWARE\DEVICEMAP\SERIALCOMM');  % much faster than chgport, ref: https://superuser.com/a/1413756/1131751
+%         [mat,tok] = regexp(res, '([A-Z0-9]+)[\s=]+([\\A-Za-z]+)[0-9]+','match','tokens');
+        [mat,tok] = regexp(res, '\\Device\\([A-ZA-z]+)[0-9]+\s+REG_SZ\s+([\\A-Za-z]+[0-9]+)','match','tokens');
         comMatches = {};
         for i = 1:length(tok)
-            if( strcmp(tok{i}{2},'\Device\ProlificSerial') )
-                comMatches{end+1} = tok{i}{1};
+            if( strcmp(tok{i}{1},'ProlificSerial') )
+                comMatches{end+1} = tok{i}{2};
             end
         end
         switch length(comMatches)
@@ -394,7 +398,9 @@ if(~connectError)
         end
     end
 end
-
+if(getappdata(handles.mainpanel,'DEBUG_MODE'))
+    disp('Trying to open COM port');
+end
 % open COM port using default settings (9600 baud)
 if(~connectError)
     SERIAL_TERMINATOR = hex2dec('0D');   % 0x0D = 0d13 = CR
@@ -404,14 +410,16 @@ if(~connectError)
     fopen(fidSerial)
     setappdata(handles.mainpanel,'fidSerial',fidSerial);
 end
-
+if(getappdata(handles.mainpanel,'DEBUG_MODE'))
+    disp('Trying to connect to Polaris');
+end
 % reset Polaris and change baud rate
 if(~connectError)
     
     % send a serial break to reset Polaris
     % use instrreset() and instrfind() to deal with ghost MATLAB port handles
     serialbreak(fidSerial, 10);
-    pause(1);
+    pause(1);  % need this to be long(ish) otherwise miss response (1sec seems ok?)
     if(getappdata(handles.mainpanel,'DEBUG_MODE'))
         disp(['< ' polarisGetResponse(fidSerial)]);  %TODO: Catch serial timeout errors that occurr if attempting to connect via wrong port
     else
