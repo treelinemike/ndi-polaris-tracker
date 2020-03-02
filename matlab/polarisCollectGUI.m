@@ -373,9 +373,9 @@ if(~connectError)
         if(getappdata(handles.mainpanel,'DEBUG_MODE'))
             disp('Attempting to identify correct COM port...');
         end
-%         [~,res]=system('chgport');
+        %         [~,res]=system('chgport');
         [~,res] = system('reg query HKLM\HARDWARE\DEVICEMAP\SERIALCOMM');  % much faster than chgport, ref: https://superuser.com/a/1413756/1131751
-%         [mat,tok] = regexp(res, '([A-Z0-9]+)[\s=]+([\\A-Za-z]+)[0-9]+','match','tokens');
+        %         [mat,tok] = regexp(res, '([A-Z0-9]+)[\s=]+([\\A-Za-z]+)[0-9]+','match','tokens');
         [mat,tok] = regexp(res, '\\Device\\([A-ZA-z]+)[0-9]+\s+REG_SZ\s+([\\A-Za-z]+[0-9]+)','match','tokens');
         comMatches = {};
         for i = 1:length(tok)
@@ -844,28 +844,59 @@ set(handles.singlecap,'Enable','off');
 set(handles.stopcap,'Enable','on');
 set(handles.disconnectbutton,'Enable','off');
 drawnow;
-    
+
 % LOCAL flag to remember to close hyperdeck TCPIP
 % probably doesn't need to be defined here
 % but doing this anyway for clarity in variable scope
 doCloseHyperDecks = 0;
-    
-% start 
+
+% start
 if(getappdata(handles.mainpanel,'send_video_cmd') == 1)
     
     % remember to close HyperDecks
     doCloseHyperDecks = 1;
-
+    
     % reset flag to send video start commands
     setappdata(handles.mainpanel,'send_video_cmd',0);
-
+    
     % set flag to allow tracking
     setappdata(handles.mainpanel,'endTrackingFlag',0);
     
-    % create TCPIP objects for each Hyper Deck
+    % Addresses for Left and Right Hyperdecks
     % TODO: this shouldn't be hard coded!!
-    hyperDeckLeft = tcpip('192.168.10.50',9993);
-    hyperDeckRight = tcpip('192.168.10.60',9993);
+    hyperDeckLeftIP = '192.168.10.50';
+    hyperDeckRightIP = '192.168.10.60';
+    
+    % Send network ping to Hyperdecks to make sure we'll be able to connect
+    pingError = 0;
+    if( isAlive(hyperDeckLeftIP,100) == 0 )
+        warning('Cannot ping LEFT Hyperdeck!');
+        pingError = 1;
+    else
+        disp('Left Hyperdeck ping successful.');
+    end
+    if( isAlive(hyperDeckRightIP,100) == 0 )
+        warning('Cannot ping RIGHT Hyperdeck!');
+        pingError = 1;
+    else
+        disp('Right Hyperdeck ping successful.');
+    end
+    
+    % exit if we got a network ping error
+    if(pingError)
+        set(handles.capturenote,'Enable','on');
+        set(handles.startcap,'Enable','on');
+        set(handles.startcapvid,'Enable','on');
+        set(handles.singlecap,'Enable','on');
+        set(handles.stopcap,'Enable','off');
+        set(handles.disconnectbutton,'Enable','on');
+        drawnow;
+        return;
+    end
+    
+    % create TCPIP objects for each Hyper Deck
+    hyperDeckLeft = tcpip(hyperDeckLeftIP,9993);
+    hyperDeckRight = tcpip(hyperDeckRightIP,9993);
     
     % open both hyperdeck TCPIP channels
     fopen(hyperDeckLeft);
@@ -883,10 +914,51 @@ if(getappdata(handles.mainpanel,'send_video_cmd') == 1)
     flushinput(hyperDeckRight);
     flushoutput(hyperDeckRight);
     
+    % send software ping to each Hyperdeck
+    fprintf(hyperDeckLeft,'ping\n');
+    fprintf(hyperDeckRight,'ping\n');
+    respL = fgets(hyperDeckLeft);
+    respR = fgets(hyperDeckRight);
+    errorVec = zeros(1,2);
+    if(isempty(respL) || ~strcmp(respL(1:6),'200 ok'))
+        errorVec(1) = 1;
+    end
+    if(isempty(respR) || ~strcmp(respR(1:6),'200 ok'))
+        errorVec(2) = 1;
+    end
+    if(prod(errorVec))
+        error('Software ping to Hyperdeck(s) failed!');
+    else
+        disp('Software ping to Hyperdecks successful.');
+    end
+    
+    % make sure REMOTE is enabled on each Hyperdeck
+    fprintf(hyperDeckLeft,'remote: enable: true\n');
+    fprintf(hyperDeckRight,'remote: enable: true\n');
+    respL = fgets(hyperDeckLeft);
+    respR = fgets(hyperDeckRight);
+    disp(['Remote enable LEFT: ' strtrim(char(respL))]);
+    disp(['Remote enable RIGHT: ' strtrim(char(respR))]);
+    
+    fprintf(hyperDeckLeft,'slot select: slot id: 1\n');
+    fprintf(hyperDeckRight,'slot select: slot id: 1\n');
+    respL = fgets(hyperDeckLeft);
+    respR = fgets(hyperDeckRight);
+    disp(['Slot 1 select LEFT: ' strtrim(char(respL))]);
+    disp(['Slot 1 select RIGHT: ' strtrim(char(respR))]);
+    
     % start recording on both Hyper Decks
     % Note: \n seems to work in MATLAB on windows, need \r\n in python
     fprintf(hyperDeckLeft,'record\n');
     fprintf(hyperDeckRight,'record\n');
+        
+    % get Hyperdeck response to record command
+    % TODO: This will add a small delay, find a workaround
+    respL = fgets(hyperDeckLeft);
+    respR = fgets(hyperDeckRight);
+    disp(['Record LEFT: ' strtrim(char(respL))]);
+    disp(['Record RIGHT: ' strtrim(char(respR))]);
+    
 end
 
 % record tracking data until stop button is pressed
@@ -898,6 +970,7 @@ setappdata(handles.mainpanel,'endTrackingFlag',0);
 
 % close TCPIP ports
 if(doCloseHyperDecks)
+    % close comms with hyperdecks
     fclose(hyperDeckLeft);
     fclose(hyperDeckRight);
 end
@@ -913,6 +986,18 @@ setappdata(handles.mainpanel,'endTrackingFlag',1);
 while(getappdata(handles.mainpanel,'endTrackigFlag'))
     % wait until collection actually stops
 end
+
+% clear all tools that are displayed in the figures
+pointHandles = getappdata(handles.mainpanel,'pointHandles');
+for toolNum = 1:9
+    pointHandles(toolNum).front.Position = [ NaN, NaN ];
+    pointHandles(toolNum).side.Position  = [ NaN, NaN ];
+    pointHandles(toolNum).top.Position   = [ NaN, NaN ];
+end
+setappdata(handles.mainpanel,'pointHandles',pointHandles);
+
+% clear status displays
+resetToolStatusIndicators(hObject, eventdata, handles);
 
 % reset GUI
 if(get(handles.rbtrack,'Value') == 1)
@@ -1191,7 +1276,7 @@ gx_transform_map = getappdata(handles.mainpanel,'gx_transform_map');
 toolsUsed        = getappdata(handles.mainpanel,'toolsUsed');
 BASE_TOOL_CHAR   = getappdata(handles.mainpanel,'BASE_TOOL_CHAR');
 pointHandles     = getappdata(handles.mainpanel,'pointHandles');
-               
+
 % keep track of whether data acquired, and repeat until it is or we hit a
 % timeout
 dataValidFlag = 0;
@@ -1492,4 +1577,15 @@ catch ME
     msgbox('Error in ROM generation function!');
     rethrow(ME);
 end
-     
+
+% function to test Hyperdeck connection
+% passes timout (ms) to ping
+function status = isAlive(ipAddr,timeout)
+[~,sysOut] = system(['ping -n 1 -w ' num2str(timeout) ' ' ipAddr ' | grep ''% loss'' | sed ''s/.*(\(.*\)\% loss),/\1/''']);
+if(str2num(sysOut) == 0)
+    status = 1;
+else
+    status = 0;
+end
+
+
