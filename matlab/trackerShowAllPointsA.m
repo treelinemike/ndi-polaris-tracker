@@ -5,8 +5,8 @@ close all; clear; clc;
 
 % data file to load
 % dataFile = 'cam_calib_001.csv';
-dataFile = 'C:\Users\f002r5k\Dropbox\projects\surg_nav\nccc_pilot\20190703-case\pointmarking_001.csv';
-
+% dataFile = 'C:\Users\f002r5k\Dropbox\projects\surg_nav\nccc_pilot\20190703-case\pointmarking_001.csv';
+dataFile = '20200716_initial_test_002.csv'
 tipLocs = {'A',[-244.085630,-8.352223,1.026031]};
 
 % counter to keep track of path colors, etc.
