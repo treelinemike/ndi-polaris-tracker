@@ -3,8 +3,8 @@ close all; clear all; clc;
 
 % specify data file and tip calibration file (just x,y,z locations of tip
 % in local coordinate system)
-validationDataFile = 'C:\Users\f002r5k\GitHub\ndi-polaris-tracker\matlab\data\medtronic_calpattern_1.csv';
-tipCalFile = 'C:\Users\f002r5k\GitHub\ndi-polaris-tracker\tool-defs\medtronic_fromdata_2.tip';
+validationDataFile = 'C:\Users\f002r5k\GitHub\ndi-polaris-tracker\matlab\harsha_drill_calpattern_001.csv';
+tipCalFile = 'C:\Users\f002r5k\GitHub\ndi-polaris-tracker\tool-defs\harsha_drill_003.tip';
 
 % configure true/target grid
 [x y z] = meshgrid(0:8,0:6,0);      % mesh grid in inches

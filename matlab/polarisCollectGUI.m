@@ -143,8 +143,8 @@ end
 setappdata(handles.mainpanel,'pointHandles',pointHandles);
 
 % important reminders
-warndlg('Turn off Bluetooth radio!','Reminder: Bluetooth','modal')
-warndlg('Press REM on Blackmagic recorders!','Reminder: Blackmagic','modal')
+% warndlg('Turn off Bluetooth radio!','Reminder: Bluetooth','modal')
+% warndlg('Press REM on Blackmagic recorders!','Reminder: Blackmagic','modal')
 
 % UIWAIT makes polarisCollectGUI wait for user response (see UIRESUME)
 % uiwait(handles.mainpanel);
@@ -864,6 +864,7 @@ if(getappdata(handles.mainpanel,'send_video_cmd') == 1)
     
     % Addresses for Left and Right Hyperdecks
     % TODO: this shouldn't be hard coded!!
+    % Set PC to 192.168.10.10 (or something similar, netmask 255.255.255.0)
     hyperDeckLeftIP = '192.168.10.50';
     hyperDeckRightIP = '192.168.10.60';
     

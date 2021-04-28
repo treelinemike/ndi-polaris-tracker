@@ -9,7 +9,7 @@
 % Revised: 12-MAR-2019 (*)
 %
 
-function polarisCollect
+% function polarisCollect
 
 % handle to function that will execute when tracking is interrupted with
 % CTRL-C
@@ -33,10 +33,11 @@ outputFilePath = 'C:\Users\f002r5k\GitHub\ndi-polaris-tracker\matlab';
 % tool definition files: each row is filename, toolCode
 % tool code: 'D' = dynamic tool; 'S' = static tool; 'B' = button box
 toolDefFiles = {
-    'C:\Users\f002r5k\GitHub\ndi-polaris-tracker\tool-defs\brainlab_stylet_fromdata_1.rom','D';
-    %'C:\Users\f002r5k\GitHub\ndi-polaris-tracker\tool-defs\medtronic_fromdata_2.rom', 'D';
-    '','';%'C:\Users\f002r5k\Dropbox\projects\surg_nav\NDI\Polaris\Tool Definition Files\Medtronic_960_556_V3.rom', 'D';
-    %'C:\Users\f002r5k\Dropbox\projects\surg_nav\NDI\Polaris\ToolDefinition Files\PassiveProbe3PTS.rom', 'D';
+    %'C:\Users\f002r5k\GitHub\ndi-polaris-tracker\tool-defs\brainlab_stylet_fromdata_1.rom','D';
+%     'C:\Users\f002r5k\GitHub\ndi-polaris-tracker\tool-defs\medtronic_fromdata_2.rom', 'D';
+    %'','';%'C:\Users\f002r5k\Dropbox\projects\surg_nav\NDI\Polaris\Tool Definition Files\Medtronic_960_556_V3.rom', 'D';
+    'C:\Users\f002r5k\GitHub\ndi-polaris-tracker\tool-defs\PassiveProbe3PTS.rom', 'D';
+    '', '';
     '', '';
     '', '';
     '', '';
@@ -71,73 +72,76 @@ end
 % reset MATLAB instrument handles just to be safe
 instrreset();
 
-% attempt to automatically find the serial port if not manually specified
-% note: this relies on the serial port descriptor reported by
-% the Windows 'chgport' utility
-if(strcmp(SERIAL_COM_PORT,''))
-    disp('Attempting to identify correct COM port...');
-    [~,res]=system('chgport');
-    [mat,tok] = regexp(res, '([A-Z0-9]+)[\s=]+([\\A-Za-z]+)[0-9]+','match','tokens');
-    comMatches = {};
-    for i = 1:length(tok)
-        if( strcmp(tok{i}{2},'\Device\ProlificSerial') )
-            comMatches{end+1} = tok{i}{1};
-        end
-    end
-    switch length(comMatches)
-        case 0
-            error('COM port not found, set manually!');
-        case 1
-            disp(['Detected correct adapter on ' comMatches{1}]);
-            SERIAL_COM_PORT = comMatches{1};
-        otherwise
-            error('Multiple ''ProlificSerial'' devices found, set COM port manually!');
-    end
-end
+% % % % % attempt to automatically find the serial port if not manually specified
+% % % % % note: this relies on the serial port descriptor reported by
+% % % % % the Windows 'chgport' utility
+% % % % if(strcmp(SERIAL_COM_PORT,''))
+% % % %     disp('Attempting to identify correct COM port...');
+% % % %     [~,res]=system('chgport');
+% % % %     [mat,tok] = regexp(res, '([A-Z0-9]+)[\s=]+([\\A-Za-z]+)[0-9]+','match','tokens');
+% % % %     comMatches = {};
+% % % %     for i = 1:length(tok)
+% % % %         if( strcmp(tok{i}{2},'\Device\ProlificSerial') )
+% % % %             comMatches{end+1} = tok{i}{1};
+% % % %         end
+% % % %     end
+% % % %     switch length(comMatches)
+% % % %         case 0
+% % % %             error('COM port not found, set manually!');
+% % % %         case 1
+% % % %             disp(['Detected correct adapter on ' comMatches{1}]);
+% % % %             SERIAL_COM_PORT = comMatches{1};
+% % % %         otherwise
+% % % %             error('Multiple ''ProlificSerial'' devices found, set COM port manually!');
+% % % %     end
+% % % % end
+% % % % 
+% % % % % open COM port using default settings (9600 baud)
+% % % % fid1 = serial(SERIAL_COM_PORT,'BaudRate',9600,'Timeout',SERIAL_TIMEOUT,'Terminator',SERIAL_TERMINATOR);
+% % % % warning off MATLAB:serial:fread:unsuccessfulRead;
+% % % % fopen(fid1);
+% % % % 
+% % % % % send a serial break to reset Polaris
+% % % % % use instrreset() and instrfind() to deal with ghost MATLAB port handles
+% % % % serialbreak(fid1, 10);
+% % % % pause(1);
+% % % % disp(['< ' polarisGetResponse(fid1)]);
+% % % % pause(1);
+% % % % 
+% % % % % produce audible beep as confirmation
+% % % % polarisSendCommand(fid1, 'BEEP:1',1);
+% % % % disp(['< ' polarisGetResponse(fid1)]);
+% % % % 
+% % % % % change communication to 57,600 baud
+% % % % polarisSendCommand(fid1, 'COMM:40000',1);
+% % % % disp(['< ' polarisGetResponse(fid1)]);
+% % % % 
+% % % % % swich MATLAB COM port settings to 57,600 baud
+% % % % fclose(fid1);
+% % % % disp('SWITCHING PC TO 57,000 BAUD');
+% % % % pause(0.5);
+% % % % fid1 = serial(SERIAL_COM_PORT,'BaudRate',57600,'Timeout',SERIAL_TIMEOUT,'Terminator',SERIAL_TERMINATOR);
+% % % % warning off MATLAB:serial:fread:unsuccessfulRead;
+% % % % fopen(fid1);
+% % % % 
+% % % % % produce audible beeps as confimation
+% % % % polarisSendCommand(fid1, 'BEEP:2',1);
+% % % % disp(['< ' polarisGetResponse(fid1)]);
+% % % % 
+% % % % % initialize system
+% % % % polarisSendCommand(fid1, 'INIT:',1);
+% % % % disp(['< ' polarisGetResponse(fid1)]);
+% % % % 
+% % % % % select volume (doing this blindly without querying volumes first)
+% % % % polarisSendCommand(fid1, 'VSEL:1',1);
+% % % % disp(['< ' polarisGetResponse(fid1)]);
+% % % % 
+% % % % % set illuminator rate to 20Hz
+% % % % polarisSendCommand(fid1, 'IRATE:0',1);
+% % % % disp(['< ' polarisGetResponse(fid1)]);
 
-% open COM port using default settings (9600 baud)
-fid1 = serial(SERIAL_COM_PORT,'BaudRate',9600,'Timeout',SERIAL_TIMEOUT,'Terminator',SERIAL_TERMINATOR);
-warning off MATLAB:serial:fread:unsuccessfulRead;
-fopen(fid1);
-
-% send a serial break to reset Polaris
-% use instrreset() and instrfind() to deal with ghost MATLAB port handles
-serialbreak(fid1, 10);
-pause(1);
-disp(['< ' polarisGetResponse(fid1)]);
-pause(1);
-
-% produce audible beep as confirmation
-polarisSendCommand(fid1, 'BEEP:1',1);
-disp(['< ' polarisGetResponse(fid1)]);
-
-% change communication to 57,600 baud
-polarisSendCommand(fid1, 'COMM:40000',1);
-disp(['< ' polarisGetResponse(fid1)]);
-
-% swich MATLAB COM port settings to 57,600 baud
-fclose(fid1);
-disp('SWITCHING PC TO 57,000 BAUD');
-pause(0.5);
-fid1 = serial(SERIAL_COM_PORT,'BaudRate',57600,'Timeout',SERIAL_TIMEOUT,'Terminator',SERIAL_TERMINATOR);
-warning off MATLAB:serial:fread:unsuccessfulRead;
-fopen(fid1);
-
-% produce audible beeps as confimation
-polarisSendCommand(fid1, 'BEEP:2',1);
-disp(['< ' polarisGetResponse(fid1)]);
-
-% initialize system
-polarisSendCommand(fid1, 'INIT:',1);
-disp(['< ' polarisGetResponse(fid1)]);
-
-% select volume (doing this blindly without querying volumes first)
-polarisSendCommand(fid1, 'VSEL:1',1);
-disp(['< ' polarisGetResponse(fid1)]);
-
-% set illuminator rate to 20Hz
-polarisSendCommand(fid1, 'IRATE:0',1);
-disp(['< ' polarisGetResponse(fid1)]);
+% TODO: REMOVE THIS
+fid1 = 0;
 
 % send tool definition files to Polaris
 % tool files can be generated with NDI 6D Architect software
@@ -157,7 +161,7 @@ for toolIdx = 1:length(toolsUsed)
     while (numBytes == 64)
         str = ['PVWR:' char(BASE_TOOL_CHAR+toolNum) dec2hex(bytePos,4) reshape(dec2hex(readBytes,2)',1,[])];
         polarisSendCommand(fid1,str,1);
-        disp(['< ' polarisGetResponse(fid1)]);
+%         disp(['< ' polarisGetResponse(fid1)]);
         [readBytes, numBytes] = fread(toolFileID,64);
         bytePos = bytePos + 64;
     end
@@ -166,7 +170,7 @@ for toolIdx = 1:length(toolsUsed)
     if(numBytes > 0)
         str = ['PVWR:' char(BASE_TOOL_CHAR+toolNum) dec2hex(bytePos,4) reshape(dec2hex(readBytes,2)',1,[]) repmat('FF',1,64-numBytes)];
         polarisSendCommand(fid1,str,1);
-        disp(['< ' polarisGetResponse(fid1)]);
+%         disp(['< ' polarisGetResponse(fid1)]);
     end
     
     % close binary tool file
@@ -174,11 +178,11 @@ for toolIdx = 1:length(toolsUsed)
     
     % initialize port handle for the tool
     polarisSendCommand(fid1, ['PINIT:' char(BASE_TOOL_CHAR+toolNum)],1);
-    disp(['< ' polarisGetResponse(fid1)]);
+%     disp(['< ' polarisGetResponse(fid1)]);
     
     % enable tracking for the tool
     polarisSendCommand(fid1, ['PENA:' char(BASE_TOOL_CHAR+toolNum) toolDefFiles{toolNum,2}],1);
-    disp(['< ' polarisGetResponse(fid1)]);
+%     disp(['< ' polarisGetResponse(fid1)]);
 end
 
 % confirm tool configuration
@@ -198,82 +202,82 @@ while( isfile(outputFileName))
 end
 fidDataOut = fopen(outputFileName,'w');
 
-% run tracking, escape with CTRL-C
-while 1
-    
-    % query tool positions
-    polarisSendCommand(fid1, gx_cmd_str);
-    thisResp = polarisGetResponse(fid1);
-    
-    if(COLLECT_MODE == 1)
-        disp(['< ' thisResp]);
-        [match,tok] = regexp(thisResp,'([+-]+[0-9]+)','match','tokens');
-        
-        if(length(tok) == (3*NUM_MARKERS+1) )
-            tokMat = cellfun(@str2num,[tok{2:end}])/100;
-            outFormatStr = repmat('%+0.4f,',1,length(tokMat));
-            outFormatStr = [outFormatStr(1:end-1) '\n'];
-            fprintf(fidDataOut,outFormatStr,tokMat);
-        end
-    elseif(COLLECT_MODE == 0)
-        
-        % get a unix timestamp for sanity check and future use (may want the
-        % actual DATE)
-        unixtimestamp = posixtime(datetime('now')); % recover with datetime(unixtimestamp,'ConvertFrom','posixtime')
-        
-        % Sample GX() response
-        % thisResp =[
-        %     'DISABLED' char(10) ...
-        %     'DISABLED' char(10) ...
-        %     'DISABLED' char(10) ...
-        %     '00000000000000000000000000000000000000000000' char(10) ...
-        %     '000000000000000000000000' char(10) ...
-        %     '+00367+00613-00731-09947+043218+001124-175562+02835' char(10) ...
-        %     '+05270-05290+03621-05578+011421-004663-179021+00631' char(10) ...
-        %     'DISABLED' char(10) ...
-        %     '003131000000000000000000000003FF00000000003F' char(10) ...
-        %     '000000000000013900000139'];
-        disp(['< ' thisResp]);
-        
-        % extract quaternion, position, timestamp, and estimated error for each tool
-        respParts = strsplit(thisResp,char(10));
-        thisStatusStr = respParts{end};
-
-        for toolIdx = 1:length(toolsUsed)
-            toolNum = toolsUsed(toolIdx);
-            thisTransformStr = respParts{ gx_transform_map(toolNum) };
-            if(length(thisTransformStr) == 51)
-                q = zeros(4,1);
-                t = zeros(3,1);
-                
-                % extract rotational component (quaternion)
-                for qIdx = 1:4
-                    startIdx = (qIdx-1)*6 + 1;
-                    q(qIdx) = str2num(thisTransformStr(startIdx:startIdx+5))/10000;
-                end
-                
-                % extract translational component
-                for tIdx = 1:3
-                    startIdx = (tIdx-1)*7 + 25;
-                    t(tIdx) = str2num(thisTransformStr(startIdx:startIdx+6))/100;
-                end
-                
-                % extract error
-                err = str2num(thisTransformStr(46:end))/10000;
-                
-                % extract timestamp
-                startIdx = (toolNum-1)*8+1;
-                timestamp = hex2dec(thisStatusStr(startIdx:startIdx+7))/60;
-                
-                % display tool tracking information
-                fprintf('%0.4f,%0.2f,%s,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%+0.2f,%+0.2f,%+0.2f,%+0.4f\n', timestamp, unixtimestamp, char(BASE_TOOL_CHAR+toolNum), q(1), q(2), q(3), q(4), t(1), t(2), t(3), err);
-                fprintf(fidDataOut,'%0.4f,%0.2f,%s,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%+0.2f,%+0.2f,%+0.2f,%+0.4f\n', timestamp, unixtimestamp, char(BASE_TOOL_CHAR+toolNum), q(1), q(2), q(3), q(4), t(1), t(2), t(3), err);
-            else
-                disp(['Tool ' char(BASE_TOOL_CHAR+toolNum) ' unexpected transform result: ' thisTransformStr]);
-            end
-        end
-    end
-end
+% % run tracking, escape with CTRL-C
+% while 1
+%     
+%     % query tool positions
+%     polarisSendCommand(fid1, gx_cmd_str);
+%     thisResp = polarisGetResponse(fid1);
+%     
+%     if(COLLECT_MODE == 1)
+%         disp(['< ' thisResp]);
+%         [match,tok] = regexp(thisResp,'([+-]+[0-9]+)','match','tokens');
+%         
+%         if(length(tok) == (3*NUM_MARKERS+1) )
+%             tokMat = cellfun(@str2num,[tok{2:end}])/100;
+%             outFormatStr = repmat('%+0.4f,',1,length(tokMat));
+%             outFormatStr = [outFormatStr(1:end-1) '\n'];
+%             fprintf(fidDataOut,outFormatStr,tokMat);
+%         end
+%     elseif(COLLECT_MODE == 0)
+%         
+%         % get a unix timestamp for sanity check and future use (may want the
+%         % actual DATE)
+%         unixtimestamp = posixtime(datetime('now')); % recover with datetime(unixtimestamp,'ConvertFrom','posixtime')
+%         
+%         % Sample GX() response
+%         % thisResp =[
+%         %     'DISABLED' char(10) ...
+%         %     'DISABLED' char(10) ...
+%         %     'DISABLED' char(10) ...
+%         %     '00000000000000000000000000000000000000000000' char(10) ...
+%         %     '000000000000000000000000' char(10) ...
+%         %     '+00367+00613-00731-09947+043218+001124-175562+02835' char(10) ...
+%         %     '+05270-05290+03621-05578+011421-004663-179021+00631' char(10) ...
+%         %     'DISABLED' char(10) ...
+%         %     '003131000000000000000000000003FF00000000003F' char(10) ...
+%         %     '000000000000013900000139'];
+%         disp(['< ' thisResp]);
+%         
+%         % extract quaternion, position, timestamp, and estimated error for each tool
+%         respParts = strsplit(thisResp,char(10));
+%         thisStatusStr = respParts{end};
+% 
+%         for toolIdx = 1:length(toolsUsed)
+%             toolNum = toolsUsed(toolIdx);
+%             thisTransformStr = respParts{ gx_transform_map(toolNum) };
+%             if(length(thisTransformStr) == 51)
+%                 q = zeros(4,1);
+%                 t = zeros(3,1);
+%                 
+%                 % extract rotational component (quaternion)
+%                 for qIdx = 1:4
+%                     startIdx = (qIdx-1)*6 + 1;
+%                     q(qIdx) = str2num(thisTransformStr(startIdx:startIdx+5))/10000;
+%                 end
+%                 
+%                 % extract translational component
+%                 for tIdx = 1:3
+%                     startIdx = (tIdx-1)*7 + 25;
+%                     t(tIdx) = str2num(thisTransformStr(startIdx:startIdx+6))/100;
+%                 end
+%                 
+%                 % extract error
+%                 err = str2num(thisTransformStr(46:end))/10000;
+%                 
+%                 % extract timestamp
+%                 startIdx = (toolNum-1)*8+1;
+%                 timestamp = hex2dec(thisStatusStr(startIdx:startIdx+7))/60;
+%                 
+%                 % display tool tracking information
+%                 fprintf('%0.4f,%0.2f,%s,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%+0.2f,%+0.2f,%+0.2f,%+0.4f\n', timestamp, unixtimestamp, char(BASE_TOOL_CHAR+toolNum), q(1), q(2), q(3), q(4), t(1), t(2), t(3), err);
+%                 fprintf(fidDataOut,'%0.4f,%0.2f,%s,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%+0.2f,%+0.2f,%+0.2f,%+0.4f\n', timestamp, unixtimestamp, char(BASE_TOOL_CHAR+toolNum), q(1), q(2), q(3), q(4), t(1), t(2), t(3), err);
+%             else
+%                 disp(['Tool ' char(BASE_TOOL_CHAR+toolNum) ' unexpected transform result: ' thisTransformStr]);
+%             end
+%         end
+%     end
+% end
 
     function endTracking()
         % close output file
@@ -287,36 +291,40 @@ end
         fclose(fid1);
     end
 
-end
+% end
 
 function polarisSendCommand(comPortHandle, cmdStr, varargin)
 
 realStr = [cmdStr polarisCRC16(0,cmdStr)];
-fprintf(comPortHandle,realStr); % note: terminator added automatically (default fprintf format is %s\n
+% fprintf(comPortHandle,realStr); % note: terminator added automatically (default fprintf format is %s\n
+disp(realStr);
 
-if(nargin > 2 && varargin{1} == 1)
-    disp(['> ' strtrim(cmdStr)]);
-end
+% if(nargin > 2 && varargin{1} == 1)
+%     disp(['> ' strtrim(cmdStr)]);
+% end
 
 end
 
 function respStr = polarisGetResponse(comPortHandle)
 
-% read response
-resp = strtrim(reshape(char(fgetl(comPortHandle)),1,[]));
-if(length(resp) < 5)
-    fclose(comPortHandle);
-    error('Invalid (or no) response from Polaris.');
-end
+% % read response
+% resp = strtrim(reshape(char(fgetl(comPortHandle)),1,[]));
+% if(length(resp) < 5)
+%     fclose(comPortHandle);
+%     error('Invalid (or no) response from Polaris.');
+% end
+% 
+% % split off CRC
+% respCRC = strtrim(resp(end-3:end));
+% respStr = strtrim(resp(1:end-4));
+% 
+% % check CRC
+% if(~strcmp(respCRC,polarisCRC16(0,respStr)))
+%     fclose(comPortHandle);
+%     error('CRC Mismatch');
+% end
+disp('<<POLARIS RESPONSE HERE>>');
+respStr = '';
 
-% split off CRC
-respCRC = strtrim(resp(end-3:end));
-respStr = strtrim(resp(1:end-4));
-
-% check CRC
-if(~strcmp(respCRC,polarisCRC16(0,respStr)))
-    fclose(comPortHandle);
-    error('CRC Mismatch');
-end
 
 end

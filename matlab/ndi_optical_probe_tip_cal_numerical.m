@@ -55,7 +55,10 @@ fclose(fileIn);
 f = @(x_local)probeError(allData(:,5:7)',allData(:,1:4)',x_local);
 
 % run optimization and display result, along with RMS error
+% options = optimoptions('fminunc','MaxIterations',4000,'OptimalityTolerance',1e-12,'StepTolerance',1e-12);
+% [xOpt, sse] = fminunc(f,[0 0 0]',options);
 [xOpt, sse] = fminsearch(f,[0 0 0]');
+
 rmse = sqrt(sse/size(allData,1));
 
 if(printResults)
