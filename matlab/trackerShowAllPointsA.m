@@ -6,12 +6,13 @@ close all; clear; clc;
 % data file to load
 % dataFile = '20210427_lucas_001.csv'
 % dataFile = '20210427_lucas_scope.csv'
-dataFile = '20210427_lucas_kidney_01.csv'
+% dataFile = '20210427_lucas_kidney_01.csv'
 % dataFile = '20210427_lucas_kidney_02.csv'
 % dataFile = '20210427_lucas_fpga.csv'
+dataFile = 'trial031.csv'
 
 % tip calibration dictionary
-tipLocs = {'A',[-304.6811,0.3919, 0.0873]};
+tipLocs = {'B',[-304.6811,0.3919, 0.0873]};
 
 % define colors
 colors = [
@@ -29,12 +30,13 @@ legStrings = {};
 
 % load data
 fid = fopen(dataFile);
-allData = textscan(fid,'%f %u %c %f %f %f %f %f %f %f %*f %s','Delimiter',',');
+allData = textscan(fid,'%f %u %c %f %f %f %f %f %f %f %f %f %f %*f %s','Delimiter',',');
 fclose(fid);time = allData{1};
 toolID = allData{3};
 Q = [allData{4:7}];
 T = [allData{8:10}];
-trackLabels = allData{11};
+x_tip = [allData{11:13}];
+trackLabels = allData{end};
 
 % create list of tracked tools
 allTools = unique(toolID);
@@ -93,6 +95,10 @@ for toolIdx = 1:numTools
         legStrings{end+1} = [thisTool ': ' trackLabel];
     end
 end
+
+% plot tip position from CSV file (GUI now generates tip position if tip
+% cal file is provided at time of tracking)
+plot3(x_tip(:,1),x_tip(:,2),x_tip(:,3),'or','MarkerSize',10);
 
 % finalize plot
 legend(legPlots,legStrings,'Location','eastoutside');

@@ -61,12 +61,12 @@ guidata(hObject, handles);
 handles.comport.String = [{'Auto'} cellstr(seriallist())];
 set(handles.tooldeffile,'Enable','off')
 set(handles.tipcalfile,'Enable','off')
-toolDefFiles = repmat({'',''},9,1);
-% toolDefFiles{1,1} = 'test 1: should be static';
-% toolDefFiles{1,2} = 'S';
-% toolDefFiles{2,1} = 'test 2: should be dynamic';
-% toolDefFiles{2,2} = 'D';
+toolDefFiles = repmat({'',''},9,1); 
+tipCalFiles = repmat({''},9,1);
 setappdata(handles.mainpanel,'toolDefFiles',toolDefFiles);
+setappdata(handles.mainpanel,'tipCalFiles',tipCalFiles);
+setappdata(handles.mainpanel,'tipCalData',zeros(9,3));
+setappdata(handles.mainpanel,'doUseTipCal',0);
 setappdata(handles.mainpanel,'outputFilePath','');
 setappdata(handles.mainpanel,'fidDataOut',-1);
 setappdata(handles.mainpanel,'fidSerial',-1);
@@ -92,10 +92,6 @@ set(handles.singlecap,'Enable','off');
 set(handles.capturenote,'Enable','off');
 set(handles.nummarkers,'Enable','off');
 resetToolStatusIndicators(hObject, eventdata, handles);
-
-% tip calibration not implemented yet...
-set(handles.tipcalbutton,'Enable','off');
-set(handles.tipcalclearbutton,'Enable','off');
 
 % initialize plots
 % make sure GridColorMode is set to manual in GUIDE figure object!
@@ -237,9 +233,8 @@ set(handles.rbstatic,'Enable','on');
 set(handles.rbdynamic,'Enable','on');
 set(handles.tooldefbutton,'Enable','on');
 set(handles.tooldefclearbutton,'Enable','on');
-%TODO: uncomment these lines when tip calibration is implemented
-%set(handles.tipcalbutton,'Enable','on');
-%set(handles.tipcalclearbutton,'Enable','on');
+set(handles.tipcalbutton,'Enable','on');
+set(handles.tipcalclearbutton,'Enable','on');
 
 function updateOutputFilePath(hObject, eventdata, handles)
 outputFilePath = getappdata(handles.mainpanel,'outputFilePath');
@@ -256,6 +251,7 @@ end
 
 function updateToolDefDisplay(hObject, eventdata, handles)
 toolDefFiles = getappdata(handles.mainpanel,'toolDefFiles');
+tipCalFiles = getappdata(handles.mainpanel,'tipCalFiles');
 toolIdx = get(handles.toolid,'Value');
 
 % put tool definition file into correct box
@@ -284,6 +280,30 @@ switch(thisToolType)
         set(handles.rbdynamic,'Value',1);
         set(handles.rbstatic,'Value',0);
 end
+
+% put tip calibration file into correct box
+tipCalFullPathStr = tipCalFiles{toolIdx};
+if(isempty(tipCalFullPathStr))
+    set(handles.tipcalfile,'String','No tip calibration file selected!');
+else
+    lastSlashIdx = find(tipCalFullPathStr == '\',1,'last');
+    if(~isempty(lastSlashIdx))
+        set(handles.tipcalfile,'String',tipCalFullPathStr(lastSlashIdx+1:end));
+    else
+        set(handles.tipcalfile,'String',tipCalFullPathStr);
+    end
+end
+
+% determine whether we're using tip calibration
+doUseTipCal = 0;
+for tcfIdx = 1:size(tipCalFiles)
+    if( ~isempty(tipCalFiles{tcfIdx}) )
+       doUseTipCal = 1; 
+    end
+end
+setappdata(handles.mainpanel,'doUseTipCal',doUseTipCal);
+
+% update GUI
 drawnow;
 
 % --- Outputs from this function are returned to the command line.
@@ -774,6 +794,32 @@ function tipcalbutton_Callback(hObject, eventdata, handles)
 % hObject    handle to tipcalbutton (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
+tipCalFiles = getappdata(handles.mainpanel,'tipCalFiles');
+tipCalData = getappdata(handles.mainpanel,'tipCalData');
+toolIdx = get(handles.toolid,'Value');
+[file,path] = uigetfile('*.tip','Select Tip Calibration File');
+
+if(ischar(file))
+
+    % try to load tipcal file
+    tipCalFilename = [path file];    
+    tipCalFid = fopen(tipCalFilename,'r');
+    tipCalFileData = textscan(tipCalFid,'%f%f%f','delimiter',',');
+    fclose(tipCalFid);
+    tipCalFileData = [tipCalFileData{:}];
+    
+    % make sure we actually got reasonable tip cal data from the file
+    if( isempty(tipCalFileData) || numel(tipCalFileData) ~= 3 )
+        msgbox('Invalid tip cal file!','Error');
+    else
+        % store tip cal file name and tip cal data
+        tipCalFiles{toolIdx,1} = tipCalFilename;
+        tipCalData(toolIdx,:) = tipCalFileData;
+        setappdata(handles.mainpanel,'tipCalFiles',tipCalFiles);
+        setappdata(handles.mainpanel,'tipCalData',tipCalData);
+        updateToolDefDisplay(hObject, eventdata, handles);
+    end
+end
 
 
 % --- Executes on button press in tipcalclearbutton.
@@ -781,6 +827,16 @@ function tipcalclearbutton_Callback(hObject, eventdata, handles)
 % hObject    handle to tipcalclearbutton (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
+
+tipCalFiles = getappdata(handles.mainpanel,'tipCalFiles');
+tipCalData = getappdata(handles.mainpanel,'tipCalData');
+toolIdx = get(handles.toolid,'Value');
+tipCalFiles{toolIdx,1} = '';
+tipCalData(toolIdx,:) = [0 0 0];
+setappdata(handles.mainpanel,'tipCalFiles',tipCalFiles);
+setappdata(handles.mainpanel,'tipCalData',tipCalData);
+updateToolDefDisplay(hObject, eventdata, handles);
+
 
 
 
@@ -1278,6 +1334,11 @@ toolsUsed        = getappdata(handles.mainpanel,'toolsUsed');
 BASE_TOOL_CHAR   = getappdata(handles.mainpanel,'BASE_TOOL_CHAR');
 pointHandles     = getappdata(handles.mainpanel,'pointHandles');
 
+% get tip cal info
+doUseTipCal = getappdata(handles.mainpanel,'doUseTipCal');
+tipCalFiles = getappdata(handles.mainpanel,'tipCalFiles');
+tipCalData  = getappdata(handles.mainpanel,'tipCalData');
+
 % keep track of whether data acquired, and repeat until it is or we hit a
 % timeout
 dataValidFlag = 0;
@@ -1309,8 +1370,9 @@ while( ~dataValidFlag && numRetries < 10)
         
         for toolIdx = 1:length(toolsUsed)
             
-            % get the tool index
+            % get the tool index and tip offset
             toolNum = toolsUsed(toolIdx);
+            x_tip_local = tipCalData(toolNum,:);
             
             % figure out which line the transform data is on
             dataLine = gx_transform_map(toolNum);
@@ -1333,6 +1395,9 @@ while( ~dataValidFlag && numRetries < 10)
                     t(tIdx) = str2num(thisTransformStr(startIdx:startIdx+6))/100;
                 end
                 
+                % determine tip position
+                x_tip_global =  t + quatrotate(q,x_tip_local');
+                
                 % extract error
                 err = str2num(thisTransformStr(46:end))/10000;
                 
@@ -1342,9 +1407,9 @@ while( ~dataValidFlag && numRetries < 10)
                 
                 % display tool tracking information
                 if(getappdata(handles.mainpanel,'DEBUG_MODE'))
-                    fprintf('%0.4f,%0.2f,%s,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%+0.2f,%+0.2f,%+0.2f,%+0.4f,%s\n', timestamp, unixtimestamp, char(BASE_TOOL_CHAR+toolNum), q(1), q(2), q(3), q(4), t(1), t(2), t(3), err, captureNoteString);
+                    fprintf('%0.4f,%0.2f,%s,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%+0.2f,%+0.2f,%+0.2f,%+0.2f,%+0.2f,%+0.2f,%+0.4f,%s\n', timestamp, unixtimestamp, char(BASE_TOOL_CHAR+toolNum), q(1), q(2), q(3), q(4), t(1), t(2), t(3), x_tip_global(1), x_tip_global(2), x_tip_global(3), err, captureNoteString);
                 end
-                fprintf(fidDataOut,'%0.4f,%0.2f,%s,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%+0.2f,%+0.2f,%+0.2f,%+0.4f,%s\n', timestamp, unixtimestamp, char(BASE_TOOL_CHAR+toolNum), q(1), q(2), q(3), q(4), t(1), t(2), t(3), err, captureNoteString);
+                fprintf(fidDataOut,'%0.4f,%0.2f,%s,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%+0.2f,%+0.2f,%+0.2f,%+0.2f,%+0.2f,%+0.2f,%+0.4f,%s\n', timestamp, unixtimestamp, char(BASE_TOOL_CHAR+toolNum), q(1), q(2), q(3), q(4), t(1), t(2), t(3), x_tip_global(1), x_tip_global(2), x_tip_global(3), err, captureNoteString);
                 
                 % plot tool position
                 pointHandles(toolNum).front.Position = [ t(2),  -t(1) ];
@@ -1578,6 +1643,24 @@ catch ME
     msgbox('Error in ROM generation function!');
     rethrow(ME);
 end
+
+% perform quaternion rotation
+% essentially using angle (theta) and axis (u, a unit vector) of rotation
+% q =     q0     +     q123
+% q = cos(theta) + sin(theta)*u
+% note: MATLAB includes a similar function in the aerospace toolbox, but
+% this is not part of the Dartmouth site license
+function v_out = quatrotate(q_in,v_in)
+
+% extract scalar and vector parts of quaternion
+q0   = q_in(1);   % real (scalar) part of quaternion
+q123 = q_in(2:4); % imaginary (vector) part of quaternion
+
+% rotate v_in using point rotation: v_out = q * v_in * conj(q)
+% q_out = quatmult(q_in,quatmult([0; v_in],quatconj(q_in)))
+% v_out = q_out(2:4)
+% Simplification from Kuipers2002: Quaternions and Rotation Sequences: A Primer with Applications to Orbits, Aerospace and Virtual Reality
+v_out = (q0^2-norm(q123)^2)*v_in + 2*dot(q123,v_in)*q123 + 2*q0*cross(q123,v_in);
 
 % function to test Hyperdeck connection
 % passes timout (ms) to ping
