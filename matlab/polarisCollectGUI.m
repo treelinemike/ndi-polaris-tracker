@@ -22,7 +22,7 @@ function varargout = polarisCollectGUI(varargin)
 
 % Edit the above text to modify the response to help polarisCollectGUI
 
-% Last Modified by GUIDE v2.5 19-Aug-2019 19:51:49
+% Last Modified by GUIDE v2.5 11-May-2021 13:28:17
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -91,6 +91,8 @@ set(handles.stopcap,'Enable','off');
 set(handles.singlecap,'Enable','off');
 set(handles.capturenote,'Enable','off');
 set(handles.nummarkers,'Enable','off');
+set(handles.tipbutton,'Enable','off');
+set(handles.generateROM,'Enable','off');
 resetToolStatusIndicators(hObject, eventdata, handles);
 
 % initialize plots
@@ -254,6 +256,10 @@ toolDefFiles = getappdata(handles.mainpanel,'toolDefFiles');
 tipCalFiles = getappdata(handles.mainpanel,'tipCalFiles');
 toolIdx = get(handles.toolid,'Value');
 
+% % for debugging, show tip calibration data
+% tipCalData = getappdata(handles.mainpanel,'tipCalData');
+% tipCalData
+
 % put tool definition file into correct box
 fullPathStr = toolDefFiles{toolIdx,1};
 if(isempty(fullPathStr))
@@ -332,6 +338,7 @@ set(handles.connectbutton,'Enable','off');
 set(handles.rbtrack,'Enable','off');
 set(handles.rbid,'Enable','off');
 set(handles.nummarkers,'Enable','off');
+set(handles.tipbutton,'Enable','off');
 
 % flag for errors in connection
 connectError = 0;
@@ -671,8 +678,17 @@ set(handles.startcapvid,'Enable','off');
 set(handles.capturenote,'Enable','off');
 set(handles.rbtrack,'Enable','on');
 set(handles.rbid,'Enable','on');
+
 if( ~get(handles.rbtrack,'Value') && get(handles.rbid,'Value'))
     set(handles.nummarkers,'Enable','on');
+    set(handles.generateROM,'Enable','on');
+end
+
+toolDefFiles = getappdata(handles.mainpanel,'toolDefFiles');
+numToolsUsed = nnz(~cellfun(@isempty,toolDefFiles(:,1)));
+
+if( get(handles.rbtrack,'Value') && ~get(handles.rbid,'Value') && numToolsUsed == 1)
+    set(handles.tipbutton,'Enable','on');
 end
 
 resetToolStatusIndicators(hObject, eventdata, handles);
@@ -1672,4 +1688,16 @@ else
     status = 0;
 end
 
-
+% --- Executes on button press in tipbutton.
+function tipbutton_Callback(hObject, eventdata, handles)
+% hObject    handle to tipbutton (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+infile = get(handles.outputfile,'String');
+[~,tok] = regexp(infile,'(\w+).csv','match','tokens');
+if(length(tok) == 1)
+    outfile = [tok{1}{1} '.tip'];
+else
+    outfile = [infile '.tip'];
+end
+ndi_optical_probe_tip_cal_numerical(infile,1,1,outfile);

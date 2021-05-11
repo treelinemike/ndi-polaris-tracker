@@ -1,9 +1,10 @@
 % Pen probe calibration routine for NDI Polaris Optical Tracking system
 %
-% xOpt = ndi_optical_probe_tip_cal_numerical( filename, printResults, showPlots )
+% xOpt = ndi_optical_probe_tip_cal_numerical( filename, printResults, showPlots, outFilename )
 %        xOpt:         optimal location (3D position) of probe tip in local coordinate system
 %        printResults: (optional) if nonzero, function will display text results in terminal
 %        showPlots:    (optional) if nonzero, function will show calibration plot
+%        outFilename:  (optional) file name to write data to
 %
 % Takes a series of 3D positions (x,y,z) and orientation quaternions (q0,q1,q2,q3)
 % and finds the best (min SSE) choice of an invarient point in the local coordinate
@@ -12,7 +13,7 @@
 % Optimization is performed numerically (rather than analyticalwebly) via
 % fminsearch()
 %
-% Modified: 20181106
+% Modified: 20210511
 % Author:   Mike Kokko
 
 function [xOpt,rmse,sse] = ndi_optical_probe_tip_cal_numerical(filename,varargin)
@@ -22,12 +23,19 @@ switch(length(varargin))
     case 0
         printResults = 0;
         showPlots = 0;
+        outFilename = '';
     case 1
         printResults = varargin{1};
         showPlots = 0;
+        outFilename = '';
     case 2
         printResults = varargin{1};
         showPlots = varargin{2};
+        outFilename = '';
+    case 3
+        printResults = varargin{1};
+        showPlots = varargin{2};
+        outFilename = varargin{3};
     otherwise
         error('Too many arguments provided.');
 end
@@ -43,7 +51,7 @@ allData = zeros(0,7);
 readResult = fgetl(fileIn);
 while ( readResult ~= -1)
     if(~contains(readResult,'MISSING'))
-        allData(end+1,:) = cell2mat(textscan(readResult,'%*f %*f %*c %f %f %f %f %f %f %f %*f','Delimiter',',','CollectOutput',1));
+        allData(end+1,:) = cell2mat(textscan(readResult,'%*f %*f %*c %f %f %f %f %f %f %f %*f %*f %*f %*f','Delimiter',',','CollectOutput',1));
     end
     readResult = fgetl(fileIn);
 end
@@ -81,6 +89,16 @@ if(showPlots)
     axis image;
 end
 
+if( ~isempty(outFilename) )
+    if(isfile(outFilename))
+        warning('File exists! Not overwriting it!');
+    else
+        fprintf('Writing %s\n',outFilename);
+        fid = fopen(outFilename,'w');
+        fprintf(fid,'%+8.3f, %+8.3f, %+8.3f',xOpt);
+        fclose(fid);
+    end
+end
 end
 
 % emperical evaluation of cost function
