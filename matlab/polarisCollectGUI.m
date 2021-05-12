@@ -22,7 +22,7 @@ function varargout = polarisCollectGUI(varargin)
 
 % Edit the above text to modify the response to help polarisCollectGUI
 
-% Last Modified by GUIDE v2.5 11-May-2021 13:28:17
+% Last Modified by GUIDE v2.5 11-May-2021 21:07:50
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -80,6 +80,7 @@ setappdata(handles.mainpanel,'DEBUG_MODE',0);   % SET DEBUG MODE HERE, 0 surpres
 setappdata(handles.mainpanel,'send_video_cmd',0);
 setappdata(handles.mainpanel,'pointHandles',[]);
 setappdata(handles.mainpanel,'validFrameCount',0);
+setappdata(handles.mainpanel,'previewFlag',0);
 
 % configure various UI components
 updateOutputFilePath(hObject, eventdata, handles);
@@ -89,6 +90,7 @@ set(handles.startcap,'Enable','off');
 set(handles.startcapvid,'Enable','off');
 set(handles.stopcap,'Enable','off');
 set(handles.singlecap,'Enable','off');
+set(handles.preview,'Enable','off');
 set(handles.capturenote,'Enable','off');
 set(handles.nummarkers,'Enable','off');
 set(handles.tipbutton,'Enable','off');
@@ -400,27 +402,24 @@ if(~connectError)
         if(getappdata(handles.mainpanel,'DEBUG_MODE'))
             disp('Attempting to identify correct COM port...');
         end
-        %         [~,res]=system('chgport');
+        %         [~,res]=system('chgport'); % slow!
         [~,res] = system('reg query HKLM\HARDWARE\DEVICEMAP\SERIALCOMM');  % much faster than chgport, ref: https://superuser.com/a/1413756/1131751
-        %         [mat,tok] = regexp(res, '([A-Z0-9]+)[\s=]+([\\A-Za-z]+)[0-9]+','match','tokens');
-        [mat,tok] = regexp(res, '\\Device\\([A-ZA-z]+)[0-9]+\s+REG_SZ\s+([\\A-Za-z]+[0-9]+)','match','tokens');
-        comMatches = {};
-        for i = 1:length(tok)
-            if( strcmp(tok{i}{1},'ProlificSerial') )
-                comMatches{end+1} = tok{i}{2};
-            end
-        end
+        % for debug: res = ['HKEY_LOCAL_MACHINE\HARDWARE\DEVICEMAP\SERIALCOMM' char(10) '\Device\Serial0    REG_SZ    COM3' char(10) '         \Device\VCP0    REG_SZ    COM1' char(10) '         \Device\VCP1    REG_SZ    COM2']
+        % [mat,tok] = regexp(res, '([A-Z0-9]+)[\s=]+([\\A-Za-z]+)[0-9]+','match','tokens');
+        % [mat,tok] = regexp(res, '\\Device\\([A-ZA-z]+)[0-9]+\s+REG_SZ\s+([\\A-Za-z]+[0-9]+)','match','tokens');
+        [mat,tok] = regexp(res, '\\Device\\VCP[0-9]+\s+REG_SZ\s+([\\A-Za-z]+[0-9]+)','match','tokens');
+        comMatches = tok;
         switch length(comMatches)
             case 0
-                waitfor(msgbox('COM port not found, set manually!'));
+                waitfor(msgbox('COM port not recognized, set manually!'));
                 connectError = 1;
             case 1
                 if(getappdata(handles.mainpanel,'DEBUG_MODE'))
-                    disp(['Detected correct adapter on ' comMatches{1}]);
+                    disp(['Detected correct adapter on ' comMatches{1}{1}]);
                 end
-                SERIAL_COM_PORT = comMatches{1};
+                SERIAL_COM_PORT = comMatches{1}{1};
             otherwise
-                waitfor(msgbox('Multiple ''ProlificSerial'' devices found, set COM port manually!'));
+                waitfor(msgbox('Multiple devices found, set COM port manually!'));
                 connectError = 1;
         end
     end
@@ -657,6 +656,7 @@ if(~connectError)
     set(handles.singlecap,'Enable','on');
     set(handles.startcap,'Enable','on');
     set(handles.startcapvid,'Enable','on');
+    set(handles.preview,'Enable','on');
     if(get(handles.rbtrack,'Value') == 1)
         set(handles.capturenote,'Enable','on');
     end
@@ -675,6 +675,7 @@ set(handles.disconnectbutton,'Enable','off');
 set(handles.singlecap,'Enable','off');
 set(handles.startcap,'Enable','off');
 set(handles.startcapvid,'Enable','off');
+set(handles.preview,'Enable','off');
 set(handles.capturenote,'Enable','off');
 set(handles.rbtrack,'Enable','on');
 set(handles.rbid,'Enable','on');
@@ -877,6 +878,7 @@ set(handles.capturenote,'Enable','off');
 set(handles.startcap,'Enable','off');
 set(handles.startcapvid,'Enable','off');
 set(handles.singlecap,'Enable','off');
+set(handles.preview,'Enable','off');
 set(handles.disconnectbutton,'Enable','off');
 
 % capture a single datapoint
@@ -902,6 +904,7 @@ end
 set(handles.startcap,'Enable','on');
 set(handles.startcapvid,'Enable','on');
 set(handles.singlecap,'Enable','on');
+set(handles.preview,'Enable','on');
 set(handles.disconnectbutton,'Enable','on');
 
 % --- Executes on button press in startcap.
@@ -914,6 +917,7 @@ set(handles.startcap,'Enable','off');
 set(handles.startcapvid,'Enable','off');
 set(handles.singlecap,'Enable','off');
 set(handles.stopcap,'Enable','on');
+set(handles.preview,'Enable','off');
 set(handles.disconnectbutton,'Enable','off');
 drawnow;
 
@@ -1055,6 +1059,7 @@ function stopcap_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 setappdata(handles.mainpanel,'endTrackingFlag',1);
+setappdata(handles.mainpanel,'previewFlag',0);
 
 while(getappdata(handles.mainpanel,'endTrackigFlag'))
     % wait until collection actually stops
@@ -1080,6 +1085,7 @@ set(handles.stopcap,'Enable','off');
 set(handles.singlecap,'Enable','on');
 set(handles.startcap,'Enable','on');
 set(handles.startcapvid,'Enable','on');
+set(handles.preview,'Enable','on');
 set(handles.disconnectbutton,'Enable','on');
 
 function capturenote_Callback(hObject, eventdata, handles)
@@ -1349,6 +1355,7 @@ gx_transform_map = getappdata(handles.mainpanel,'gx_transform_map');
 toolsUsed        = getappdata(handles.mainpanel,'toolsUsed');
 BASE_TOOL_CHAR   = getappdata(handles.mainpanel,'BASE_TOOL_CHAR');
 pointHandles     = getappdata(handles.mainpanel,'pointHandles');
+previewFlag      = getappdata(handles.mainpanel,'previewFlag');
 
 % get tip cal info
 doUseTipCal = getappdata(handles.mainpanel,'doUseTipCal');
@@ -1425,7 +1432,11 @@ while( ~dataValidFlag && numRetries < 10)
                 if(getappdata(handles.mainpanel,'DEBUG_MODE'))
                     fprintf('%0.4f,%0.2f,%s,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%+0.2f,%+0.2f,%+0.2f,%+0.2f,%+0.2f,%+0.2f,%+0.4f,%s\n', timestamp, unixtimestamp, char(BASE_TOOL_CHAR+toolNum), q(1), q(2), q(3), q(4), t(1), t(2), t(3), x_tip_global(1), x_tip_global(2), x_tip_global(3), err, captureNoteString);
                 end
-                fprintf(fidDataOut,'%0.4f,%0.2f,%s,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%+0.2f,%+0.2f,%+0.2f,%+0.2f,%+0.2f,%+0.2f,%+0.4f,%s\n', timestamp, unixtimestamp, char(BASE_TOOL_CHAR+toolNum), q(1), q(2), q(3), q(4), t(1), t(2), t(3), x_tip_global(1), x_tip_global(2), x_tip_global(3), err, captureNoteString);
+                
+                % actually write data to file if not in preview mode
+                if(~previewFlag)
+                    fprintf(fidDataOut,'%0.4f,%0.2f,%s,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%+0.2f,%+0.2f,%+0.2f,%+0.2f,%+0.2f,%+0.2f,%+0.4f,%s\n', timestamp, unixtimestamp, char(BASE_TOOL_CHAR+toolNum), q(1), q(2), q(3), q(4), t(1), t(2), t(3), x_tip_global(1), x_tip_global(2), x_tip_global(3), err, captureNoteString);
+                end
                 
                 % plot tool position
                 pointHandles(toolNum).front.Position = [ t(2),  -t(1) ];
@@ -1701,3 +1712,12 @@ else
     outfile = [infile '.tip'];
 end
 ndi_optical_probe_tip_cal_numerical(infile,1,1,outfile);
+
+
+% --- Executes on button press in preview.
+function preview_Callback(hObject, eventdata, handles)
+% hObject    handle to preview (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+setappdata(handles.mainpanel,'previewFlag',1);
+startcap_Callback(hObject, eventdata, handles);
