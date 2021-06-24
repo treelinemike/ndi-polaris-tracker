@@ -1430,12 +1430,12 @@ while( ~dataValidFlag && numRetries < 10)
                 
                 % display tool tracking information
                 if(getappdata(handles.mainpanel,'DEBUG_MODE'))
-                    fprintf('%0.4f,%0.2f,%s,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%+0.2f,%+0.2f,%+0.2f,%+0.2f,%+0.2f,%+0.2f,%+0.4f,%s\n', timestamp, unixtimestamp, char(BASE_TOOL_CHAR+toolNum), q(1), q(2), q(3), q(4), t(1), t(2), t(3), x_tip_global(1), x_tip_global(2), x_tip_global(3), err, captureNoteString);
+                    fprintf('%0.4f,%0.2f,%s,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%s\n', timestamp, unixtimestamp, char(BASE_TOOL_CHAR+toolNum), q(1), q(2), q(3), q(4), t(1), t(2), t(3), x_tip_global(1), x_tip_global(2), x_tip_global(3), err, captureNoteString);
                 end
                 
                 % actually write data to file if not in preview mode
                 if(~previewFlag)
-                    fprintf(fidDataOut,'%0.4f,%0.2f,%s,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%+0.2f,%+0.2f,%+0.2f,%+0.2f,%+0.2f,%+0.2f,%+0.4f,%s\n', timestamp, unixtimestamp, char(BASE_TOOL_CHAR+toolNum), q(1), q(2), q(3), q(4), t(1), t(2), t(3), x_tip_global(1), x_tip_global(2), x_tip_global(3), err, captureNoteString);
+                    fprintf(fidDataOut,'%0.4f,%0.2f,%s,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%s\n', timestamp, unixtimestamp, char(BASE_TOOL_CHAR+toolNum), q(1), q(2), q(3), q(4), t(1), t(2), t(3), x_tip_global(1), x_tip_global(2), x_tip_global(3), err, captureNoteString);
                 end
                 
                 % plot tool position

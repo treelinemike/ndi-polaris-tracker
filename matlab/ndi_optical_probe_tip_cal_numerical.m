@@ -95,7 +95,7 @@ if( ~isempty(outFilename) )
     else
         fprintf('Writing %s\n',outFilename);
         fid = fopen(outFilename,'w');
-        fprintf(fid,'%+8.3f, %+8.3f, %+8.3f',xOpt);
+        fprintf(fid,'%+0.4f,%+0.4f,%+0.4f',xOpt);
         fclose(fid);
     end
 end
