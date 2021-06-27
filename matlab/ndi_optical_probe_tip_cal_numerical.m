@@ -128,6 +128,22 @@ end
 % this is not part of the Dartmouth site license
 function v_out = quatrotate(q_in,v_in)
 
+% make sure q_in and v_in are the correct length and shape
+if (numel(q_in) == 4)
+    q_in = reshape(q_in,4,1);
+else
+    error('Quaternion must have 4 elements.');
+end
+if (numel(v_in) == 3)
+    v_in_size = size(v_in);
+    v_in = reshape(v_in,3,1);
+else
+    error('Vector to rotate must have 3 elements.');
+end
+
+% normalize quaternion (it should be very close to a unit quaternion anyway...)
+q_in = q_in/norm(q_in);
+
 % extract scalar and vector parts of quaternion
 q0   = q_in(1);   % real (scalar) part of quaternion
 q123 = q_in(2:4); % imaginary (vector) part of quaternion
