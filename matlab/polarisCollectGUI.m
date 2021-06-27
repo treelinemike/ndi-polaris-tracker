@@ -1430,12 +1430,12 @@ while( ~dataValidFlag && numRetries < 10)
                 
                 % display tool tracking information
                 if(getappdata(handles.mainpanel,'DEBUG_MODE'))
-                    fprintf('%0.4f,%0.2f,%s,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%s\n', timestamp, unixtimestamp, char(BASE_TOOL_CHAR+toolNum), q(1), q(2), q(3), q(4), t(1), t(2), t(3), x_tip_global(1), x_tip_global(2), x_tip_global(3), err, captureNoteString);
+                    fprintf('%0.4f,%0.2f,%s,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%+0.2f,%+0.2f,%+0.2f,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%s\n', timestamp, unixtimestamp, char(BASE_TOOL_CHAR+toolNum), q(1), q(2), q(3), q(4), t(1), t(2), t(3), x_tip_global(1), x_tip_global(2), x_tip_global(3), err, captureNoteString);
                 end
                 
                 % actually write data to file if not in preview mode
                 if(~previewFlag)
-                    fprintf(fidDataOut,'%0.4f,%0.2f,%s,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%s\n', timestamp, unixtimestamp, char(BASE_TOOL_CHAR+toolNum), q(1), q(2), q(3), q(4), t(1), t(2), t(3), x_tip_global(1), x_tip_global(2), x_tip_global(3), err, captureNoteString);
+                    fprintf(fidDataOut,'%0.4f,%0.2f,%s,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%+0.2f,%+0.2f,%+0.2f,%+0.4f,%+0.4f,%+0.4f,%+0.4f,%s\n', timestamp, unixtimestamp, char(BASE_TOOL_CHAR+toolNum), q(1), q(2), q(3), q(4), t(1), t(2), t(3), x_tip_global(1), x_tip_global(2), x_tip_global(3), err, captureNoteString);
                 end
                 
                 % plot tool position
@@ -1678,6 +1678,9 @@ end
 % note: MATLAB includes a similar function in the aerospace toolbox, but
 % this is not part of the Dartmouth site license
 function v_out = quatrotate(q_in,v_in)
+
+% normalize quaternion (it should be very close to a unit quaternion anyway...)
+q_in = q_in/norm(q_in);
 
 % extract scalar and vector parts of quaternion
 q0   = q_in(1);   % real (scalar) part of quaternion
