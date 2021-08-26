@@ -929,6 +929,9 @@ doCloseHyperDecks = 0;
 % start
 if(getappdata(handles.mainpanel,'send_video_cmd') == 1)
     
+    % flag to use kinematics - will be set high if we can ping the PC
+    doStartKinematics = 0;
+    
     % remember to close HyperDecks
     doCloseHyperDecks = 1;
     
@@ -943,6 +946,7 @@ if(getappdata(handles.mainpanel,'send_video_cmd') == 1)
     % Set PC to 192.168.10.10 (or something similar, netmask 255.255.255.0)
     hyperDeckLeftIP = '192.168.10.50';
     hyperDeckRightIP = '192.168.10.60';
+    kinematicsPCIP = '192.168.10.70';
     
     % Send network ping to Hyperdecks to make sure we'll be able to connect
     pingError = 0;
@@ -959,7 +963,15 @@ if(getappdata(handles.mainpanel,'send_video_cmd') == 1)
         disp('Right Hyperdeck ping successful.');
     end
     
-    % exit if we got a network ping error
+    if( isAlive(kinematicsPCIP,100) == 0 )
+        warning('Cannot directly ping kinematics PC!');
+        pingError = 1;
+    else
+        disp('Kinematics PC direct ping successful.');
+        doStartKinematics = 1;
+    end
+    
+    % exit if we got a network ping error on the hyperdecks
     if(pingError)
         set(handles.capturenote,'Enable','on');
         set(handles.startcap,'Enable','on');
@@ -974,15 +986,24 @@ if(getappdata(handles.mainpanel,'send_video_cmd') == 1)
     % create TCPIP objects for each Hyper Deck
     hyperDeckLeft = tcpip(hyperDeckLeftIP,9993);
     hyperDeckRight = tcpip(hyperDeckRightIP,9993);
+    kinematicsPCSocket = tcpip(kinematicsPCIP,9993);
     
     % open both hyperdeck TCPIP channels
     fopen(hyperDeckLeft);
-    fopen(hyperDeckRight);
     if(~strcmp(hyperDeckLeft.status,'open'))
         error('Error opening LEFT HyperDeck TCP/IP channel.');
     end
+    
+    fopen(hyperDeckRight);
     if(~strcmp(hyperDeckRight.status,'open'))
         error('Error opening RIGHT HyperDeck TCP/IP channel.');
+    end
+    
+    if(doStartKinematics)
+        fopen(kinematicsPCSocket);
+        if(~strcmp(kinematicsPCSocket.status,'open'))
+            error('Error opening kinematics PC TCP/IP socket.');
+        end
     end
     
     % flush input and output buffers
@@ -990,6 +1011,10 @@ if(getappdata(handles.mainpanel,'send_video_cmd') == 1)
     flushoutput(hyperDeckLeft);
     flushinput(hyperDeckRight);
     flushoutput(hyperDeckRight);
+    if(doStartKinematics)
+        flushinput(kinematicsPCSocket);
+        flushoutput(kinematicsPCSocket);
+    end
     
     % send software ping to each Hyperdeck
     fprintf(hyperDeckLeft,'ping\n');
@@ -1035,6 +1060,9 @@ if(getappdata(handles.mainpanel,'send_video_cmd') == 1)
     respR = fgets(hyperDeckRight);
     disp(['Record LEFT: ' strtrim(char(respL))]);
     disp(['Record RIGHT: ' strtrim(char(respR))]);
+    if(doStartKinematics)
+        fprintf(kinematicsPCSocket,'record');
+    end
     
 end
 
