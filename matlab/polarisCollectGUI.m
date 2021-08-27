@@ -965,7 +965,7 @@ if(getappdata(handles.mainpanel,'send_video_cmd') == 1)
     
     if( isAlive(kinematicsPCIP,100) == 0 )
         warning('Cannot directly ping kinematics PC!');
-        pingError = 1;
+        pingError = 0; % don't need to fail if we don't find the kinematics PC
     else
         disp('Kinematics PC direct ping successful.');
         doStartKinematics = 1;
