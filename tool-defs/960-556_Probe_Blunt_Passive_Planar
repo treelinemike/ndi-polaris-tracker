@@ -1,0 +1,42 @@
+###########################################################################
+# 
+# Standard Passive Planar Probe
+#
+# Revision 4-8-09 for ScanLink Release
+#    added scanlink_enabled behavior
+# 
+###########################################################################
+
+# general tool information
+name         : Passive Planar, Blunt
+short name   : ppb
+behavior     : footswitch_free_verification scanlink_enabled
+calibratable : false
+cad filename : /usr/people/Tools/cad/probe/960-556_PASSIVE_PLANAR_BLUNT.iv
+verification : normal
+ver number divots : 1
+ver divot type 1 : cone
+ver divot offset 1 : 0.5
+ver maximum angle 1 : 45.0
+ver threshold 1 : 2
+
+# specific to polaris
+polaris name      : <no rom>
+polaris port type : passive
+polaris passive geometry type : planar
+polaris port mode : dynamic
+number leds : 5
+led 1 :      160.00   0.00   0.00   90.0 0 
+led 2 :      230.00   0.00   0.00   90.0 0
+led 3 :      305.00   0.00   0.00   90.0 0
+led 4 :      263.67 -43.49   0.00   90.0 0
+led 5 :      256.00  42.71   0.00   90.0 0
+min for visible : 3
+# max marker angle : 180 # to be consistant with old ADL
+max marker angle : 90
+max geometry error : 1.5
+
+# specific to probe
+tip  :   0      0   0      -0.4985   180.0
+hind : 119.53   0   1.04   -0.4985   180.0
+
