@@ -3,7 +3,7 @@ function varargout = polarisCollectGUI(varargin)
 %      POLARISCOLLECTGUI, by itself, creates a new POLARISCOLLECTGUI or raises the existing
 %      singleton*.
 %
-%      H = POLARISCOLLECTGUI returns the handle to a new POLARISCOLLECTGUI or the handle to
+%      H = POLARISCi`   OLLECTGUI returns the handle to a new POLARISCOLLECTGUI or the handle to
 %      the existing singleton*.
 %
 %      POLARISCOLLECTGUI('CALLBACK',hObject,eventData,handles,...) calls the local
@@ -19,8 +19,6 @@ function varargout = polarisCollectGUI(varargin)
 %      instance to run (singleton)".
 %
 % See also: GUIDE, GUIDATA, GUIHANDLES
-
-% Edit the above text to modify the response to help polarisCollectGUI
 
 % Last Modified by GUIDE v2.5 11-May-2021 21:07:50
 
@@ -81,6 +79,7 @@ setappdata(handles.mainpanel,'send_video_cmd',0);
 setappdata(handles.mainpanel,'pointHandles',[]);
 setappdata(handles.mainpanel,'validFrameCount',0);
 setappdata(handles.mainpanel,'previewFlag',0);
+setappdata(handles.mainpanel,'baseUnixTimestamp',0);
 
 % configure various UI components
 updateOutputFilePath(hObject, eventdata, handles);
@@ -445,13 +444,22 @@ if(~connectError)
     % send a serial break to reset Polaris
     % use instrreset() and instrfind() to deal with ghost MATLAB port handles
     serialbreak(fidSerial, 10);
+
+    % wait and get response from Polaris
     pause(1);  % need this to be long(ish) otherwise miss response (1sec seems ok?)
+
+    % grab a UNIX timestamp for approximate sync with UTC
+    % TODO: not entirely sure that this is where the polaris clock starts, but it is pretty close
+    baseUnixTimestamp = posixtime(datetime('now','TimeZone','UTC'));
+    setappdata(handles.mainpanel,'baseUnixTimestamp',baseUnixTimestamp);
+    
+    % now get response from polaris, after waiting
     if(getappdata(handles.mainpanel,'DEBUG_MODE'))
         disp(['< ' polarisGetResponse(fidSerial)]);  %TODO: Catch serial timeout errors that occurr if attempting to connect via wrong port
     else
         polarisGetResponse(fidSerial);
     end
-    
+
     % produce audible beep as confirmation
     polarisSendCommand(handles,fidSerial, 'BEEP:1',1);
     if(getappdata(handles.mainpanel,'DEBUG_MODE'))
@@ -647,6 +655,10 @@ if(~connectError)
     else
         setappdata(handles.mainpanel,'fidDataOut',fidDataOut);
     end
+
+    % write row of column headers to output file
+    fprintf(fidDataOut,'polaris_time,unix_time,tool_id,q0,q1,q2,q3,tx,ty,tz,tx_tip,ty_tip,tz_tip,reg_err,capture_note\n');
+
 end
 
 
@@ -751,7 +763,14 @@ function tooldefbutton_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-[file,path] = uigetfile('*.rom','Select Tool Definition File');
+% switch to default tool definition file folder if it exists
+% TODO: make this more robust, and check across platforms!
+defaultToolDefPath = '../tool-defs/';
+if(~isfolder(defaultToolDefPath))
+    defaultToolDefPath = '.';
+end
+
+[file,path] = uigetfile('*.rom','Select Tool Definition File',defaultToolDefPath);
 
 if(ischar(file))
     toolDefFiles = getappdata(handles.mainpanel,'toolDefFiles');
@@ -1376,14 +1395,15 @@ if(~strcmp(respCRC,polarisCRC16(0,respStr)))
 end
 
 function captureStatus = polarisCaptureData(hObject, eventdata, handles)
-fidSerial        = getappdata(handles.mainpanel,'fidSerial');
-fidDataOut       = getappdata(handles.mainpanel,'fidDataOut');
-gx_cmd_str       = getappdata(handles.mainpanel,'gx_cmd_str');
-gx_transform_map = getappdata(handles.mainpanel,'gx_transform_map');
-toolsUsed        = getappdata(handles.mainpanel,'toolsUsed');
-BASE_TOOL_CHAR   = getappdata(handles.mainpanel,'BASE_TOOL_CHAR');
-pointHandles     = getappdata(handles.mainpanel,'pointHandles');
-previewFlag      = getappdata(handles.mainpanel,'previewFlag');
+fidSerial         = getappdata(handles.mainpanel,'fidSerial');
+fidDataOut        = getappdata(handles.mainpanel,'fidDataOut');
+gx_cmd_str        = getappdata(handles.mainpanel,'gx_cmd_str');
+gx_transform_map  = getappdata(handles.mainpanel,'gx_transform_map');
+toolsUsed         = getappdata(handles.mainpanel,'toolsUsed');
+BASE_TOOL_CHAR    = getappdata(handles.mainpanel,'BASE_TOOL_CHAR');
+pointHandles      = getappdata(handles.mainpanel,'pointHandles');
+previewFlag       = getappdata(handles.mainpanel,'previewFlag');
+baseUnixTimestamp = getappdata(handles.mainpanel,'baseUnixTimestamp');
 
 % get tip cal info
 doUseTipCal = getappdata(handles.mainpanel,'doUseTipCal');
@@ -1412,19 +1432,24 @@ while( ~dataValidFlag && numRetries < 10)
         captureNoteString = get(handles.capturenote,'String');
         captureNoteString(regexp(captureNoteString,','))=[];
         
-        % get a unix timestamp for sanity check and future use (may want the actual DATE)
-        unixtimestamp = posixtime(datetime('now')); % recover with datetime(unixtimestamp,'ConvertFrom','posixtime')
-        
         % extract quaternion, position, timestamp, and estimated error for each tool
         respParts = strsplit(thisResp,char(10));
         thisFrameNumStr = respParts{end};
         
         for toolIdx = 1:length(toolsUsed)
-            
+
             % get the tool index and tip offset
             toolNum = toolsUsed(toolIdx);
             x_tip_local = tipCalData(toolNum,:);
-            
+
+            % extract polaris timestamp
+            % and generate approximate corresponding UNIX timestamp
+            % built off of the initial system start time rather than
+            % pulling fresh to avoid variation for communicaiton delays
+            startIdx = (toolNum-1)*8+1;
+            timestamp = hex2dec(thisFrameNumStr(startIdx:startIdx+7))/60;
+            unixtimestamp = baseUnixTimestamp + timestamp;
+
             % figure out which line the transform data is on
             dataLine = gx_transform_map(toolNum);
             
@@ -1451,10 +1476,6 @@ while( ~dataValidFlag && numRetries < 10)
                 
                 % extract error
                 err = str2num(thisTransformStr(46:end))/10000;
-                
-                % extract timestamp
-                startIdx = (toolNum-1)*8+1;
-                timestamp = hex2dec(thisFrameNumStr(startIdx:startIdx+7))/60;
                 
                 % display tool tracking information
                 if(getappdata(handles.mainpanel,'DEBUG_MODE'))
