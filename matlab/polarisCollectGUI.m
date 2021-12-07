@@ -657,7 +657,10 @@ if(~connectError)
     end
 
     % write row of column headers to output file
-    fprintf(fidDataOut,'polaris_time,unix_time,tool_id,q0,q1,q2,q3,tx,ty,tz,tx_tip,ty_tip,tz_tip,reg_err,capture_note\n');
+    % only if we're in tracking mode (don't want this for tool id mode
+    if( get(handles.rbtrack,'Value') && ~get(handles.rbid,'Value'))
+        fprintf(fidDataOut,'polaris_time,unix_time,tool_id,q0,q1,q2,q3,tx,ty,tz,tx_tip,ty_tip,tz_tip,reg_err,capture_note\n');
+    end
 
 end
 
@@ -984,7 +987,7 @@ if(getappdata(handles.mainpanel,'send_video_cmd') == 1)
     
     if( isAlive(kinematicsPCIP,100) == 0 )
         warning('Cannot directly ping kinematics PC!');
-        pingError = 0; % don't need to fail if we don't find the kinematics PC
+        pingError = 1; % don't need to fail if we don't find the kinematics PC
     else
         disp('Kinematics PC direct ping successful.');
         doStartKinematics = 1;
@@ -1744,7 +1747,8 @@ v_out = (q0^2-norm(q123)^2)*v_in + 2*dot(q123,v_in)*q123 + 2*q0*cross(q123,v_in)
 % function to test Hyperdeck connection
 % passes timout (ms) to ping
 function status = isAlive(ipAddr,timeout)
-[~,sysOut] = system(['ping -n 1 -w ' num2str(timeout) ' ' ipAddr ' | grep ''% loss'' | sed ''s/.*(\(.*\)\% loss),/\1/''']);
+%[~,sysOut] = system(['ping -n 1 -w ' num2str(timeout) ' ' ipAddr ' | grep ''% loss'' | sed ''s/.*(\(.*\)\% loss),/\1/''']);
+[~,sysOut] = system(['ping -n 1 -w ' num2str(timeout) ' ' ipAddr ' | grep "% loss" | sed "s/.*(\(.*\)\% loss),/\1/"']);
 if(str2num(sysOut) == 0)
     status = 1;
 else
