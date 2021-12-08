@@ -3,7 +3,7 @@ function varargout = polarisCollectGUI(varargin)
 %      POLARISCOLLECTGUI, by itself, creates a new POLARISCOLLECTGUI or raises the existing
 %      singleton*.
 %
-%      H = POLARISCi`   OLLECTGUI returns the handle to a new POLARISCOLLECTGUI or the handle to
+%      H = POLARISCOLLECTGUI returns the handle to a new POLARISCOLLECTGUI or the handle to
 %      the existing singleton*.
 %
 %      POLARISCOLLECTGUI('CALLBACK',hObject,eventData,handles,...) calls the local
@@ -987,7 +987,7 @@ if(getappdata(handles.mainpanel,'send_video_cmd') == 1)
     
     if( isAlive(kinematicsPCIP,100) == 0 )
         warning('Cannot directly ping kinematics PC!');
-        pingError = 1; % don't need to fail if we don't find the kinematics PC
+        pingError = 1; % TODO: PULL THIS OUT AS A USER OPTION, MAY NOT ALWAYS WANT TO FAIL IF KINEMATICS PC NOT PRESENT!
     else
         disp('Kinematics PC direct ping successful.');
         doStartKinematics = 1;
@@ -1744,8 +1744,11 @@ q123 = q_in(2:4); % imaginary (vector) part of quaternion
 % Simplification from Kuipers2002: Quaternions and Rotation Sequences: A Primer with Applications to Orbits, Aerospace and Virtual Reality
 v_out = (q0^2-norm(q123)^2)*v_in + 2*dot(q123,v_in)*q123 + 2*q0*cross(q123,v_in);
 
-% function to test Hyperdeck connection
+% function to ping a specified IP address
 % passes timout (ms) to ping
+% this requires gnu tools (grep, sed), available from:
+% https://sourceforge.net/projects/getgnuwin32/files/
+% http://getgnuwin32.sourceforge.net/
 function status = isAlive(ipAddr,timeout)
 %[~,sysOut] = system(['ping -n 1 -w ' num2str(timeout) ' ' ipAddr ' | grep ''% loss'' | sed ''s/.*(\(.*\)\% loss),/\1/''']);
 [~,sysOut] = system(['ping -n 1 -w ' num2str(timeout) ' ' ipAddr ' | grep "% loss" | sed "s/.*(\(.*\)\% loss),/\1/"']);
