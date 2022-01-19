@@ -1,6 +1,17 @@
 % generate ROM file for a probe from 
 close all; clear; clc;
 
+
+% Custom Linear Array 1
+% Machined 14-Jan-21
+romFileName = 'mak_linear_001.rom';
+mfgrString = 'Thayer';
+partNumString = 'Linear 001';
+known_marker_locs = [   0.0     0.0   13.64;
+                        0.0     1.20  13.64;    
+                        0.0     3.20  13.64 ] * 25.4;
+
+
 % % MEDTRONIC SMALL PASSIVE CRANIAL FRAME 961-337
 % romFileName = 'medtronic_961_337.rom';
 % mfgrString = 'Medtronic';
