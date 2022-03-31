@@ -2,14 +2,14 @@
 close all; clear; clc;
 
 
-% Custom Linear Array 1
-% Machined 14-Jan-21
-romFileName = 'mak_linear_001.rom';
-mfgrString = 'Thayer';
-partNumString = 'Linear 001';
-known_marker_locs = [   0.0     0.0   13.64;
-                        0.0     1.20  13.64;    
-                        0.0     3.20  13.64 ] * 25.4;
+% % Custom Linear Array 1
+% % Machined 14-Jan-21
+% romFileName = 'mak_linear_001.rom';
+% mfgrString = 'Thayer';
+% partNumString = 'Linear 001';
+% known_marker_locs = [   0.0     0.0   13.64;
+%                         0.0     1.20  13.64;    
+%                         0.0     3.20  13.64 ] * 25.4;
 
 
 % % MEDTRONIC SMALL PASSIVE CRANIAL FRAME 961-337
@@ -45,15 +45,15 @@ known_marker_locs = [   0.0     0.0   13.64;
 romFileName = 'medtronic_9730605_referece.rom';
 mfgrString = 'Medtronic';
 partNumString = 'Small Reference';                     
-known_marker_locs = [     0.00     0.00   4.86; 
-                          50.00    0.00   4.86;
-                          77.00   65.00   4.86;
-                         -39.00   65.00   0.00];
+known_marker_locs = [     0.00     0.00    8.77; 
+                          50.00    0.00    8.77;
+                          77.00   65.00    8.77;
+                         -39.00   65.00    8.77];
 
 % general settings
 romMaxAngle = 90;    % [deg] (integer)
 romMinMarkers = 3;
-romMax3DError = 0.50;  % [mm]
+romMax3DError = 0.5;  % [mm]
 
 % compile information for tool definition ROM file
 % tool definition file contents
