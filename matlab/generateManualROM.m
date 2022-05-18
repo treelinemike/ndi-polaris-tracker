@@ -7,9 +7,19 @@ close all; clear; clc;
 % romFileName = 'mak_linear_001.rom';
 % mfgrString = 'Thayer';
 % partNumString = 'Linear 001';
-% known_marker_locs = [   0.0     0.0   13.64;
-%                         0.0     1.20  13.64;    
-%                         0.0     3.20  13.64 ] * 25.4;
+% known_marker_locs = [   0.0   0.0  0.570;
+%                         2.00  0.0  0.570;    
+%                         3.60  0.0  0.570] * 25.4;
+
+
+% % Custom Linear Array 2
+% % Machined 14-Jan-21
+% romFileName = 'mak_linear_002.rom';
+% mfgrString = 'Thayer';
+% partNumString = 'Linear 001';
+% known_marker_locs = [   0.0   0.0  0.570;
+%                         2.80  0.0  0.570;    
+%                         4.00  0.0  0.570] * 25.4;
 
 
 % % MEDTRONIC SMALL PASSIVE CRANIAL FRAME 961-337
@@ -40,15 +50,15 @@ close all; clear; clc;
 %                           256.00  42.71   0.00];
 % known_marker_locs = known_marker_locs - known_marker_locs(3,:);                      
 
-% MEDTRONIC SMALL REFERENCE FRAME
-% PN9730605 / 120524
-romFileName = 'medtronic_9730605_referece.rom';
-mfgrString = 'Medtronic';
-partNumString = 'Small Reference';                     
-known_marker_locs = [     0.00     0.00    8.77; 
-                          50.00    0.00    8.77;
-                          77.00   65.00    8.77;
-                         -39.00   65.00    8.77];
+% % MEDTRONIC SMALL REFERENCE FRAME
+% % PN9730605 / 120524
+% romFileName = 'medtronic_9730605_referece.rom';
+% mfgrString = 'Medtronic';
+% partNumString = 'Small Reference';                     
+% known_marker_locs = [     0.00     0.00    8.77; 
+%                           50.00    0.00    8.77;
+%                           77.00   65.00    8.77;
+%                          -39.00   65.00    8.77];
 
 % general settings
 romMaxAngle = 90;    % [deg] (integer)
