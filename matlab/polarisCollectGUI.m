@@ -433,8 +433,14 @@ if(~connectError)
     SERIAL_TERMINATOR = hex2dec('0D');   % 0x0D = 0d13 = CR
     SERIAL_TIMEOUT    = 0.05;            % [s]
     fidSerial = serial(SERIAL_COM_PORT,'BaudRate',9600,'Timeout',SERIAL_TIMEOUT,'Terminator',SERIAL_TERMINATOR);
+    fopen(fidSerial);
+% need to transition to new serialport interface but serialbreak() has been
+% remvoed which we need to reset the Polaris... see: https://www.mathworks.com/support/search.html/answers/623978-is-there-an-equivalent-serialbreak-function-with-the-new-serialport-class-in-matlab-2020b.html
+%     fidSerial = serialport(SERIAL_COM_PORT,9600,'Timeout',SERIAL_TIMEOUT);
+%     fidSerial.configureTerminator(SERIAL_TERMINATOR);
+%     fidSerial.flush();    
     warning off MATLAB:serial:fread:unsuccessfulRead;
-    fopen(fidSerial)
+    
     setappdata(handles.mainpanel,'fidSerial',fidSerial);
 end
 if(getappdata(handles.mainpanel,'DEBUG_MODE'))
