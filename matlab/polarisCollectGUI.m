@@ -12,7 +12,7 @@ function varargout = polarisCollectGUI(varargin)
 %      POLARISCOLLECTGUI('Property','Value',...) creates a new POLARISCOLLECTGUI or raises the
 %      existing singleton*.  Starting from the left, property value pairs are
 %      applied to the GUI before polarisCollectGUI_OpeningFcn gets called.  An
-%      unrecognized property name or invalid value makes property application
+%      unrecognized property name or invalid value makes property app   lication
 %      stop.  All inputs are passed to polarisCollectGUI_OpeningFcn via varargin.
 %
 %      *See GUI Options on GUIDE's Tools menu.  Choose "GUI allows only one
@@ -56,7 +56,7 @@ handles.output = hObject;
 % Update handles structure
 guidata(hObject, handles);
 
-handles.comport.String = [{'Auto'} cellstr(seriallist())];
+handles.comport.String = [{'Auto'} cellstr(serialportlist())];
 set(handles.tooldeffile,'Enable','off')
 set(handles.tipcalfile,'Enable','off')
 toolDefFiles = repmat({'',''},9,1); 
@@ -340,6 +340,8 @@ set(handles.rbtrack,'Enable','off');
 set(handles.rbid,'Enable','off');
 set(handles.nummarkers,'Enable','off');
 set(handles.tipbutton,'Enable','off');
+set(handles.frameCount,'String','');
+setappdata(handles.mainpanel,'validFrameCount',0);
 
 % flag for errors in connection
 connectError = 0;
@@ -1266,7 +1268,7 @@ function nummarkers_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
-set(hObject,'String',num2cell(3:16));
+set(hObject,'String',num2cell(1:16));
 
 % --- Executes during object creation, after setting all properties.
 function tipcalfile_CreateFcn(hObject, eventdata, handles)
@@ -1555,7 +1557,10 @@ while( ~dataValidFlag && numRetries < 10)
         % determine how many markers we should see
         numMarkersList = get(handles.nummarkers,'String');
         numMarkers = str2num(numMarkersList{get(handles.nummarkers,'Value')});
+        %   fprintf('Looking for returns with %d points, found %d points...\n',numMarkers,(length(tok)-1)/3);
         
+
+
         if(length(tok) == (3*numMarkers+1) )
             tokMat = cellfun(@str2num,[tok{2:end}])/100;
             outFormatStr = repmat('%+0.4f,',1,length(tokMat));
