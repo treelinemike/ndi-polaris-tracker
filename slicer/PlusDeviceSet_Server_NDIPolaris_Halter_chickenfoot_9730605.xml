@@ -1,53 +1,40 @@
 <PlusConfiguration version="2.1">
-
-  <DataCollection StartupDelaySec="1.0" >
-    <DeviceSet 
-      Name="PlusServer: NDI Polaris Halter Lab Medtronic Chicken Foot 960-556 and 9730605 suretrak tool" 
-      Description="Broadcasting tool tracking data through OpenIGTLink
-for NDI Polaris tools with passive markers " />
-    <Device
-      Id="TrackerDevice"
-      Type="PolarisTracker"
-      ToolReferenceFrame="Tracker"
-      BaudRate="57600"
-      AcquisitionRate="15"	  >
+  <DataCollection StartupDelaySec="1.0">
+  
+    <DeviceSet Name="PlusServer: NDI Polaris Halter Lab Medtronic Chicken Foot 960-556 and 9730605 suretrak tool"
+    Description="Broadcasting tool tracking data through OpenIGTLink for NDI Polaris tools with passive markers" />
+    
+	<Device Id="TrackerDevice" Type="PolarisTracker" ToolReferenceFrame="Tracker" BaudRate="57600" AcquisitionRate="15">
       <DataSources>
-        <DataSource Type="Tool" Id="ChickenFootProbe" RomFile="NdiToolDefinitions/medtronic_chicken_foot_960_556.rom"  />
-		<DataSource Type="Tool" Id="9730605Probe" RomFile="NdiToolDefinitions/medtronic_9730605_referece.rom"  />
+        <DataSource Type="Tool" Id="ChickenFootProbe" RomFile="NdiToolDefinitions/medtronic_chicken_foot_960_556.rom" />
+        <DataSource Type="Tool" Id="9730605Probe" RomFile="NdiToolDefinitions/medtronic_9730605_referece.rom" />
       </DataSources>
       <OutputChannels>
-        <OutputChannel Id="TrackerStream" >
-          <DataSource Id="ChickenFootProbe"/>
-		  <DataSource Id="9730605Probe"/>
+        <OutputChannel Id="TrackerStream">
+          <DataSource Id="ChickenFootProbe" />
+          <DataSource Id="9730605Probe" />
         </OutputChannel>
       </OutputChannels>
     </Device>
-    <Device
-      Id="CaptureDevice"
-      Type="VirtualCapture"
-      BaseFilename="RecordingTest.igs.nrrd"
-      EnableFileCompression="TRUE"
-      EnableCapturingOnStart="TRUE" >
+    
+	<Device Id="CaptureDevice" Type="VirtualCapture" BaseFilename="RecordingTest.igs.nrrd" EnableFileCompression="TRUE"
+    EnableCapturingOnStart="TRUE">
       <InputChannels>
         <InputChannel Id="TrackerStream" />
       </InputChannels>
-    </Device>    
+    </Device>
+  
   </DataCollection>
   
-  
-  <PlusOpenIGTLinkServer 
-    MaxNumberOfIgtlMessagesToSend="1"
-    MaxTimeSpentWithProcessingMs="50"
-    ListeningPort="18944"
-    SendValidTransformsOnly="true"
-    OutputChannelId="TrackerStream" >
+  <PlusOpenIGTLinkServer MaxNumberOfIgtlMessagesToSend="1" MaxTimeSpentWithProcessingMs="50" ListeningPort="18944"
+  SendValidTransformsOnly="true" OutputChannelId="TrackerStream">
     <DefaultClientInfo>
       <MessageTypes>
         <Message Type="TRANSFORM" />
       </MessageTypes>
       <TransformNames>
-		<Transform Name="ChickenFootProbeToTracker" />
-		<Transform Name="9730605ProbeToTracker" />
+        <Transform Name="ChickenFootProbeToTracker" />
+        <Transform Name="9730605ProbeToTracker" />
       </TransformNames>
     </DefaultClientInfo>
   </PlusOpenIGTLinkServer>
