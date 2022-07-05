@@ -1,0 +1,65 @@
+<PlusConfiguration version="2.1">
+  <DataCollection StartupDelaySec="1.0">
+    <DeviceSet Name="Polaris + Aurora"
+    Description="Broadcasting tool tracking data through OpenIGTLink for NDI Polaris and Aurora" />
+    
+	<Device Id="Polaris" Type="PolarisTracker" SerialPort="6" BaudRate="57600" AcquisitionRate="15" ToolReferenceFrame="Polaris">
+      <DataSources>
+        <DataSource Type="Tool" Id="ChickenFootProbe" RomFile="NdiToolDefinitions/medtronic_chicken_foot_960_556.rom" />
+        <DataSource Type="Tool" Id="9730605Probe" RomFile="NdiToolDefinitions/medtronic_9730605_referece.rom" />
+      </DataSources>
+      <OutputChannels>
+        <OutputChannel Id="PolarisStream">
+          <DataSource Id="ChickenFootProbe" />
+          <DataSource Id="9730605Probe" />
+        </OutputChannel>
+      </OutputChannels>
+    </Device>
+    
+	<Device Id="Aurora" Type="AuroraTracker" SerialPort="4" ToolReferenceFrame="Aurora">
+      <DataSources>
+        <DataSource Type="Tool" Id="PenCoil" PortName="0" />
+        <DataSource Type="Tool" Id="SecondCoil" PortName="1" />
+      </DataSources>
+      <OutputChannels>
+        <OutputChannel Id="AuroraStream">
+          <DataSource Id="PenCoil" />
+          <DataSource Id="SecondCoil" />
+        </OutputChannel>
+      </OutputChannels>
+    </Device>
+    
+	<Device Id="CombinedTrackingDevice" Type="VirtualMixer">
+      <InputChannels>
+        <InputChannel Id="PolarisStream" />
+        <InputChannel Id="AuroraStream" />
+      </InputChannels>
+      <OutputChannels>
+        <OutputChannel Id="TrackerStream" />
+      </OutputChannels>
+    </Device>
+    
+	<Device Id="CaptureDevice" Type="VirtualCapture" BaseFilename="RecordingTest.mha" EnableCapturingOnStart="false">
+      <InputChannels>
+        <InputChannel Id="TrackerStream" />
+      </InputChannels>
+    </Device>
+
+  </DataCollection>
+  
+  <PlusOpenIGTLinkServer MaxNumberOfIgtlMessagesToSend="1" MaxTimeSpentWithProcessingMs="50" ListeningPort="18944"
+  SendValidTransformsOnly="true" OutputChannelId="TrackerStream">
+    <DefaultClientInfo>
+      <MessageTypes>
+        <Message Type="TRANSFORM" />
+      </MessageTypes>
+      <TransformNames>
+        <Transform Name="PenCoilToAurora" />
+        <Transform Name="SecondCoilToAurora" />
+        <Transform Name="ChickenFootProbeToPolaris" />
+        <Transform Name="9730605ProbeToPolaris" />
+      </TransformNames>
+    </DefaultClientInfo>
+  </PlusOpenIGTLinkServer>
+  
+</PlusConfiguration>
