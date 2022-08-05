@@ -1,7 +1,6 @@
 % generate ROM file for a probe from 
 close all; clear; clc;
 
-
 % % Custom Linear Array 1
 % % Machined 14-Jan-21
 % romFileName = 'mak_linear_001.rom';
@@ -11,7 +10,6 @@ close all; clear; clc;
 %                         2.00  0.0  0.570;    
 %                         3.60  0.0  0.570] * 25.4;
 
-
 % % Custom Linear Array 2
 % % Machined 14-Jan-21
 % romFileName = 'mak_linear_002.rom';
@@ -20,7 +18,6 @@ close all; clear; clc;
 % known_marker_locs = [   0.0   0.0  0.570;
 %                         2.80  0.0  0.570;    
 %                         4.00  0.0  0.570] * 25.4;
-
 
 % % MEDTRONIC SMALL PASSIVE CRANIAL FRAME 961-337
 % romFileName = 'medtronic_961_337.rom';
@@ -59,6 +56,15 @@ close all; clear; clc;
 %                           50.00    0.00    8.77;
 %                           77.00   65.00    8.77;
 %                          -39.00   65.00    8.77];
+
+% MEDTRONIC SURETRAK2 BLACK FRAME 
+romFileName = 'medtronic_suretrak2_black.rom';
+mfgrString = 'Medtronic';
+partNumString = 'Black Frame';                     
+known_marker_locs = [     0.00     0.00    8.77; 
+                          32.50   38.00    8.77;
+                         -34.85   42.55    8.77;
+                          10.43   85.64    8.77];
 
 % general settings
 romMaxAngle = 90;    % [deg] (integer)
