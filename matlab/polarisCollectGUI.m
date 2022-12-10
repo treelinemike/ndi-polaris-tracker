@@ -6,6 +6,8 @@ function varargout = polarisCollectGUI(varargin)
 %      H = POLARISCOLLECTGUI returns the handle to a new POLARISCOLLECTGUI or the handle to
 %      the existing singleton*.
 %
+
+
 %      POLARISCOLLECTGUI('CALLBACK',hObject,eventData,handles,...) calls the local
 %      function named CALLBACK in POLARISCOLLECTGUI.M with the given input arguments.
 %
@@ -454,7 +456,7 @@ if(~connectError)
     serialbreak(fidSerial, 10);
 
     % wait and get response from Polaris
-    pause(1);  % need this to be long(ish) otherwise miss response (1sec seems ok?)
+    pause(3);  % need this to be long(ish) otherwise miss response (1sec seems ok but fails in C++ implementation, increasing to 3sec)
 
     % grab a UNIX timestamp for approximate sync with UTC
     % TODO: not entirely sure that this is where the polaris clock starts, but it is pretty close
@@ -995,7 +997,7 @@ if(getappdata(handles.mainpanel,'send_video_cmd') == 1)
     
     if( isAlive(kinematicsPCIP,100) == 0 )
         warning('Cannot directly ping kinematics PC!');
-        pingError = 1; % TODO: PULL THIS OUT AS A USER OPTION, MAY NOT ALWAYS WANT TO FAIL IF KINEMATICS PC NOT PRESENT!
+        pingError = 0;%1; % TODO: PULL THIS OUT AS A USER OPTION, MAY NOT ALWAYS WANT TO FAIL IF KINEMATICS PC NOT PRESENT!
     else
         disp('Kinematics PC direct ping successful.');
         doStartKinematics = 1;
@@ -1092,6 +1094,7 @@ if(getappdata(handles.mainpanel,'send_video_cmd') == 1)
     disp(['Record RIGHT: ' strtrim(char(respR))]);
     if(doStartKinematics)
         fprintf(kinematicsPCSocket,'record');
+        fprintf('Kinematics should have started...');
     end
     
 end
@@ -1781,8 +1784,9 @@ if(length(tok) == 1)
 else
     outfile = [infile '.tip'];
 end
-ndi_optical_probe_tip_cal_numerical(infile,1,1,outfile);
-
+% ndi_optical_probe_tip_cal_numerical(infile,1,1,outfile);
+[~,rmse] = pivot_cal_lsq(infile,2.0,outfile);
+fprintf('Tip calibration RMSE = %0.4f mm\n',rmse);
 
 % --- Executes on button press in preview.
 function preview_Callback(hObject, eventdata, handles)
