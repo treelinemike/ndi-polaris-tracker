@@ -98,8 +98,11 @@ while(keep_running_flag)
                 case '9730605ProbeToTracke'
                     ph_btfly.Vertices = hTF(stl_btfly.Points',TF,0)';
                     %fprintf('but/%d\n',body_size);
+                case 'NeedleToTracker'
+                    fprintf('Aurora coil\n');
                 otherwise
-                    fprintf('Unknown tool!');
+                    fprintf('Unknown tool: %s\n',device_name);
+                    TF
             end
             drawnow;
         end % end update display
