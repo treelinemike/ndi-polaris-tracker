@@ -51,7 +51,7 @@ allData = zeros(0,7);
 readResult = fgetl(fileIn);
 while ( readResult ~= -1)
     if(~contains(readResult,'MISSING'))
-        allData(end+1,:) = cell2mat(textscan(readResult,'%*f %*f %*c %f %f %f %f %f %f %f %*f %*f %*f %*f','Delimiter',',','CollectOutput',1));
+        allData(end+1,:) = cell2mat(textscan(readResult,'%*f %*f %*s %f %f %f %f %f %f %f %*f %*f %*f %*f','Delimiter',',','CollectOutput',1));
     end
     readResult = fgetl(fileIn);
 end
