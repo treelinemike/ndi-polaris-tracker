@@ -396,7 +396,7 @@ end
 if(~connectError)
     
     % reset MATLAB instrument handles just to be safe
-    instrreset();
+    %instrreset();
     
     % figure out which COM port to open
     comPortValues = get(handles.comport,'String');
@@ -433,16 +433,17 @@ end
 % open COM port using default settings (9600 baud)
 if(~connectError)
     SERIAL_TERMINATOR = hex2dec('0D');   % 0x0D = 0d13 = CR
-    SERIAL_TIMEOUT    = 0.05;            % [s]
-    fidSerial = serial(SERIAL_COM_PORT,'BaudRate',9600,'Timeout',SERIAL_TIMEOUT,'Terminator',SERIAL_TERMINATOR);
-    fopen(fidSerial);
+    SERIAL_TIMEOUT    = 0.20;            % [s]  HAD TO INCREASE THIS FROM 0.05s to 0.20s 08-Nov-2023 WHEN SWITCHING TO SERIALPORT OBJECT 
+    fidSerial = serialport(SERIAL_COM_PORT,9600,'Timeout',SERIAL_TIMEOUT);
+    configureTerminator(fidSerial,SERIAL_TERMINATOR);
+    %fidSerial = serial(SERIAL_COM_PORT,'BaudRate',9600,'Timeout',SERIAL_TIMEOUT,'Terminator',SERIAL_TERMINATOR);
+    %fopen(fidSerial);
 % need to transition to new serialport interface but serialbreak() has been
 % remvoed which we need to reset the Polaris... see: https://www.mathworks.com/support/search.html/answers/623978-is-there-an-equivalent-serialbreak-function-with-the-new-serialport-class-in-matlab-2020b.html
 %     fidSerial = serialport(SERIAL_COM_PORT,9600,'Timeout',SERIAL_TIMEOUT);
 %     fidSerial.configureTerminator(SERIAL_TERMINATOR);
 %     fidSerial.flush();    
-    warning off MATLAB:serial:fread:unsuccessfulRead;
-    
+    %warning off MATLAB:serial:fread:unsuccessfulRead;
     setappdata(handles.mainpanel,'fidSerial',fidSerial);
 end
 if(getappdata(handles.mainpanel,'DEBUG_MODE'))
@@ -487,14 +488,15 @@ if(~connectError)
     end
     
     % swich MATLAB COM port settings to 57,600 baud
-    fclose(fidSerial);
+    fidSerial.delete;
+
     if(getappdata(handles.mainpanel,'DEBUG_MODE'))
         disp('SWITCHING PC TO 57,000 BAUD');
     end
     pause(0.5);
-    fidSerial = serial(SERIAL_COM_PORT,'BaudRate',57600,'Timeout',SERIAL_TIMEOUT,'Terminator',SERIAL_TERMINATOR);
-    warning off MATLAB:serial:fread:unsuccessfulRead;
-    fopen(fidSerial);
+    fidSerial = serialport(SERIAL_COM_PORT,57600,'Timeout',SERIAL_TIMEOUT);
+    configureTerminator(fidSerial,SERIAL_TERMINATOR);
+    %warning off MATLAB:serial:fread:unsuccessfulRead;
     setappdata(handles.mainpanel,'fidSerial',fidSerial);
     
     % produce audible beeps as confimation
@@ -542,7 +544,7 @@ if(~connectError)
         thisToolFile = toolDefFiles{toolNum,1};
         toolFileID = fopen(thisToolFile);
         if( isempty(toolFileID) )
-            fclose(fidSerial);
+            fidSerial.delete;
             error('Invalid tool file and/or path.');
         end
         
@@ -741,7 +743,7 @@ else
 end
 
 % close communication
-fclose(fidSerial);
+fidSerial.delete;
 
 % clear FIDs
 setappdata(handles.mainpanel,'fidSerial',-1);
@@ -1381,7 +1383,7 @@ end
 function polarisSendCommand(handles,comPortHandle, cmdStr, varargin)
 
 realStr = [cmdStr polarisCRC16(0,cmdStr)];
-fprintf(comPortHandle,realStr); % note: terminator added automatically (default fprintf format is %s\n
+writeline(comPortHandle,realStr); % note: terminator added automatically (default fprintf format is %s\n
 
 if(nargin > 3 && varargin{1} == 1)
     if(getappdata(handles.mainpanel,'DEBUG_MODE'))
@@ -1392,9 +1394,9 @@ end
 % read response from Polaris system
 function respStr = polarisGetResponse(comPortHandle)
 
-resp = strtrim(reshape(char(fgetl(comPortHandle)),1,[]));
+resp = strtrim(reshape(char(readline(comPortHandle)),1,[]));
 if(length(resp) < 5)
-    fclose(comPortHandle);
+    %comPortHandle.delete;
     error('Invalid (or no) response from Polaris.');
 end
 
